@@ -52,7 +52,8 @@ if ! done_mark unbound; then
     35a6dc0e425a9282c3426d9a3043144011bf0534aed4b73ab62c52aee0af1503
   (cd "$WORK/build/unbound-1.26.1" && ./configure $HOSTARG --prefix="$PREFIX" --disable-shared --enable-static \
      --with-ssl="$PREFIX" --with-libexpat="$PREFIX" --without-pyunbound --without-pythonmodule --disable-flto \
-     --with-libunbound-only --disable-gost >/dev/null && make -j$J >/dev/null && make install >/dev/null)
+     --with-libunbound-only --disable-gost >/dev/null || { grep -n -B2 -A12 "sizeof (size_t)" config.log | tail -60; exit 1; }
+     make -j$J >/dev/null && make install >/dev/null)
   mark unbound
 fi
 if ! done_mark zmq; then
