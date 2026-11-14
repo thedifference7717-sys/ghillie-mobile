@@ -1,5 +1,6 @@
-# Builds CAMO's wallet library + the bridge for iPhone/iPad (arm64) as one static library, and checks that an iOS
-# executable links against it. Artifact: ios-libcamo_wallet-arm64.
+# Builds CAMO's wallet library + the bridge as one static library for iPhone/iPad (arm64; artifact
+# ios-libcamo_wallet-arm64) and for the iOS simulator on Intel Macs (x86_64; artifact ios-libcamo_wallet-sim-x86_64),
+# and checks that an executable links against each.
 name: ios wallet library
 on:
   workflow_dispatch:
@@ -10,6 +11,15 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: device
+            artifact: ios-libcamo_wallet-arm64
+          - target: sim-x86_64
+            artifact: ios-libcamo_wallet-sim-x86_64
+    name: build (${{ matrix.target }})
     runs-on: macos-15
     timeout-minutes: 240
     steps:
@@ -21,19 +31,21 @@ jobs:
       - name: restore dependency cache
         uses: actions/cache/restore@v5
         with:
-          path: work/prefix
-          key: ios-prefix-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ios-prefix-
+          path: work/prefix-${{ matrix.target }}
+          key: ios-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ios-${{ matrix.target }}-
       - name: build
-        run: bash native/ios/build-ios-lib.sh camo work
+        run: |
+          TARGET=${{ matrix.target }} bash native/ios/build-ios-lib.sh camo work
+          mkdir -p up && cp work/out/libcamo_wallet-${{ matrix.target }}.a up/libcamo_wallet.a
       # keep finished dependencies even when a later step fails, so the next attempt resumes
       - name: save dependency cache
         if: always()
         uses: actions/cache/save@v5
         with:
-          path: work/prefix
-          key: ios-prefix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/prefix-${{ matrix.target }}
+          key: ios-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v5
         with:
-          name: ios-libcamo_wallet-arm64
-          path: work/out/libcamo_wallet.a
+          name: ${{ matrix.artifact }}
+          path: up/libcamo_wallet.a
