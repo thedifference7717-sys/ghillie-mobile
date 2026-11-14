@@ -119,20 +119,26 @@ class _SetupScreenState extends State<SetupScreen> {
   Future<void> _unlock() => _run(() async => widget.onReady(await widget.vault.open(_pw.text)));
 
   Widget _field(TextEditingController c, String label, {bool secret = false, int lines = 1, TextInputType? type, Key? key}) =>
+      // label sits above the box (a floating label would be crossed by the notched border)
       Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          key: key,
-          controller: c,
-          obscureText: secret,
-          minLines: lines,
-          maxLines: secret ? 1 : lines,
-          keyboardType: type,
-          autocorrect: false,
-          enableSuggestions: false,
-          style: Gt.mono(14),
-          decoration: InputDecoration(labelText: label),
-        ),
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(label, style: Gt.body(13, color: Gc.text2, weight: FontWeight.w500)),
+          ),
+          TextField(
+            key: key,
+            controller: c,
+            obscureText: secret,
+            minLines: lines,
+            maxLines: secret ? 1 : lines,
+            keyboardType: type,
+            autocorrect: false,
+            enableSuggestions: false,
+            style: Gt.mono(14),
+          ),
+        ]),
       );
 
   Widget _primary(String text, VoidCallback? onTap, {Key? key}) => SizedBox(
