@@ -1,6 +1,8 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
+import 'scan_screen.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/amount.dart';
@@ -130,9 +132,25 @@ class _SendScreenState extends State<SendScreen> {
                     child: const Icon(Icons.content_paste, size: 20, color: Gc.text2, semanticLabel: 'Paste'),
                   ),
                 ),
+                if (Platform.isAndroid || Platform.isIOS) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: OutlinedButton(
+                      key: const Key('send-scan'),
+                      style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                      onPressed: () async {
+                        final v = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const ScanScreen()));
+                        if (v != null && v.isNotEmpty) _to.text = v;
+                      },
+                      child: const Icon(Icons.qr_code_scanner, size: 20, color: Gc.text2, semanticLabel: 'Scan QR'),
+                    ),
+                  ),
+                ],
               ]),
               const SizedBox(height: 6),
-              Text('Paste an address, or a camo: link to fill the amount too. QR scanning comes next.', style: Gt.body(12, color: Gc.text3)),
+              Text('Paste or scan an address, or a camo: link to fill the amount too.', style: Gt.body(12, color: Gc.text3)),
               const SizedBox(height: 18),
               _label('Amount'),
               TextField(
