@@ -12,7 +12,8 @@ SDK=$(xcrun --sdk iphoneos --show-sdk-path); MIN=15.0; J=$(sysctl -n hw.ncpu)
 export CC="$(xcrun --sdk iphoneos -f clang)" CXX="$(xcrun --sdk iphoneos -f clang++)"
 export CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -O2"
 export CXXFLAGS="$CFLAGS" LDFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN"
-HOSTARG=--host=aarch64-apple-darwin
+# a host triplet different from the build Mac (also arm64) makes configure cross-compile instead of running iPhone binaries
+HOSTARG="--host=arm-apple-darwin --build=$(uname -m)-apple-darwin"
 
 fetch() { # url sha256 -> extracted dir name on stdout
   local f="$WORK/dl/$(basename "$1")"
@@ -51,7 +52,7 @@ if ! done_mark unbound; then
     35a6dc0e425a9282c3426d9a3043144011bf0534aed4b73ab62c52aee0af1503
   (cd "$WORK/build/unbound-1.26.1" && ./configure $HOSTARG --prefix="$PREFIX" --disable-shared --enable-static \
      --with-ssl="$PREFIX" --with-libexpat="$PREFIX" --without-pyunbound --without-pythonmodule --disable-flto \
-     --with-libunbound-only --disable-gost --disable-ecdsa-check >/dev/null && make -j$J >/dev/null && make install >/dev/null)
+     --with-libunbound-only --disable-gost >/dev/null && make -j$J >/dev/null && make install >/dev/null)
   mark unbound
 fi
 if ! done_mark zmq; then
