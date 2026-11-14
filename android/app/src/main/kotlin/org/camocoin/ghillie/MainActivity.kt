@@ -1,11 +1,12 @@
 package org.camocoin.ghillie
 
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity: the fingerprint prompt (BiometricPrompt) needs a FragmentActivity.
+class MainActivity : FlutterFragmentActivity() {
     // Called by lib/ui/sensitive.dart while the 25 words are on screen: no screenshots, recordings or recents thumbnail.
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

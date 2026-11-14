@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghillie/main.dart';
 import 'package:ghillie/screens/settings_screen.dart';
 import 'package:ghillie/wallet/demo_wallet.dart';
+import 'package:ghillie/wallet/quick_unlock.dart';
 import 'package:ghillie/wallet/vault.dart';
 import 'package:ghillie/wallet/wallet_service.dart';
 
@@ -22,6 +23,7 @@ void main() {
   nodeTests();
   settingsNodeTest();
   sensitiveTest();
+  quickUnlockTests();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -163,5 +165,59 @@ void sensitiveTest() {
     t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await t.pump();
     expect(find.byKey(const Key('sensitive-cover')), findsNothing);
+  });
+}
+
+void quickUnlockTests() {
+  testWidgets('Face ID: opt in when creating, then unlock without typing; refusal falls back to the password', (t) async {
+    await phone(t);
+    final q = MemoryQuickUnlock();
+    quickUnlock = q;
+    addTearDown(() => quickUnlock = NoQuickUnlock());
+    final v = DemoVault();
+    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+    await tapKey(t, 'setup-create');
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-remember');
+    await tapKey(t, 'setup-make');
+    await tapKey(t, 'setup-wrote');
+    await tapKey(t, 'setup-continue');
+    for (final e in find.byWidgetPredicate((w) => w.key is ValueKey<String> && (w.key as ValueKey<String>).value.startsWith('setup-check-')).evaluate().toList()) {
+      final i = int.parse((e.widget.key as ValueKey<String>).value.split('-').last);
+      await t.enterText(find.byKey(e.widget.key!), DemoVault.sampleWords[i]);
+    }
+    await tapKey(t, 'setup-confirm');
+    expect(await q.isSet(), isTrue);
+
+    // next start: Face ID is offered at once and opens the wallet
+    await t.pumpWidget(GhillieApp(key: UniqueKey(), vault: v, showIntro: false));
+    await t.pumpAndSettle();
+    expect(find.text('1,239.63'), findsOneWidget);
+
+    // Face ID refused: stays on the unlock screen with a message; the password still works
+    q.approve = false;
+    await t.pumpWidget(GhillieApp(key: UniqueKey(), vault: v, showIntro: false));
+    await t.pumpAndSettle();
+    expect(find.textContaining('not confirmed'), findsOneWidget);
+    expect(find.byKey(const Key('setup-quick')), findsOneWidget);
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await tapKey(t, 'setup-unlock');
+    expect(find.text('1,239.63'), findsOneWidget);
+  });
+
+  testWidgets('Face ID is off unless chosen', (t) async {
+    await phone(t);
+    final q = MemoryQuickUnlock();
+    quickUnlock = q;
+    addTearDown(() => quickUnlock = NoQuickUnlock());
+    await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
+    await tapKey(t, 'setup-restore');
+    expect(find.byKey(const Key('setup-remember')), findsOneWidget);
+    await t.enterText(find.byKey(const Key('setup-words')), DemoVault.sampleWords.join(' '));
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-do-restore');
+    expect(await q.isSet(), isFalse);
   });
 }

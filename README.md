@@ -45,8 +45,8 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
    rate-limited `--restricted-rpc` CAMO node (decision pending: the free Google seed has only 1 GB/month egress).
 6. **Security before release**: wallet files encrypted by the library with the user's password (done); seed screens
    protected (done Nov 14: Android FLAG_SECURE, covered in app switchers on all platforms); QR scanning on Send (done
-   Nov 14, on-device decoding); still to do: optional Face ID / fingerprint unlock via iOS Keychain / Android Keystore,
-   the printed recovery sheet.
+   Nov 14, on-device decoding); optional Face ID / fingerprint unlock (done Nov 14, opt-in: iOS Keychain with biometryCurrentSet, this device only;
+   Android Keystore with strong biometrics per read; off in Settings); still to do: the printed recovery sheet.
 7. **Distribution**: test builds are free (Android APK; iOS via Xcode with a free Apple ID on the owner's device,
    7-day signing). Store releases need Apple's Developer Program ($99/yr) and Google Play ($25 once): owner's call.
 
@@ -54,7 +54,7 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
 ```
 flutter pub get
 flutter test
-flutter run -d linux        # phone-sized window
+flutter run -d linux        # phone-sized window (Linux needs libsecret-1-dev for secure storage)
 ```
 
 ## Real wallet (development)

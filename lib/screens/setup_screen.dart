@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../ui/sensitive.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../wallet/quick_unlock.dart';
 import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
 
@@ -32,6 +33,54 @@ class _SetupScreenState extends State<SetupScreen> {
   List<String> _seed = const [];
   WalletService? _created;
   bool _wroteDown = false, _busy = false;
+  bool _remember = false; // "unlock with Face ID / fingerprint next time" (opt-in)
+  bool _quickSet = false; // a biometric-protected password is stored
+
+  @override
+  void initState() {
+    super.initState();
+    if (quickUnlock.supported && widget.vault.hasWallet) {
+      quickUnlock.isSet().then((set) {
+        if (!mounted || !set) return;
+        setState(() => _quickSet = true);
+        _quick(); // offer Face ID / fingerprint right away, like banking apps; the password stays available
+      });
+    }
+  }
+
+  Future<void> _ready(WalletService w, String password) async {
+    if (_remember && quickUnlock.supported) {
+      try {
+        await quickUnlock.save(password);
+      } catch (_) {
+        // biometrics not set up on this phone: the password keeps working
+      }
+    }
+    widget.onReady(w);
+  }
+
+  Future<void> _quick() => _run(() async {
+        final pw = await quickUnlock.read();
+        if (pw == null) throw StateError('${quickUnlock.name} not confirmed. You can type your password instead.');
+        try {
+          widget.onReady(await widget.vault.open(pw));
+        } on WrongPassword {
+          await quickUnlock.clear();
+          setState(() => _quickSet = false);
+          throw StateError('The saved password no longer works. Type your password.');
+        }
+      });
+
+  Widget _rememberBox() => !quickUnlock.supported || _quickSet
+      ? const SizedBox.shrink()
+      : CheckboxListTile(
+          key: const Key('setup-remember'),
+          contentPadding: EdgeInsets.zero,
+          value: _remember,
+          onChanged: (v) => setState(() => _remember = v ?? false),
+          title: Text('Unlock with ${quickUnlock.name} next time', style: Gt.body(14)),
+          subtitle: Text('The password stays on this phone, locked behind ${quickUnlock.name}.', style: Gt.body(12, color: Gc.text3)),
+        );
   String? _error;
 
   @override
@@ -104,7 +153,7 @@ class _SetupScreenState extends State<SetupScreen> {
     }
     final w = _created!;
     _seed = const [];
-    widget.onReady(w);
+    _ready(w, _pw.text);
   }
 
   Future<void> _restore() => _run(() async {
@@ -114,10 +163,10 @@ class _SetupScreenState extends State<SetupScreen> {
         if (h == null || h < 0) throw StateError('Restore height must be a block number (0 if unsure).');
         final p = _passwordProblem();
         if (p != null) throw StateError(p);
-        widget.onReady(await widget.vault.restore(words, _pw.text, h));
+        await _ready(await widget.vault.restore(words, _pw.text, h), _pw.text);
       });
 
-  Future<void> _unlock() => _run(() async => widget.onReady(await widget.vault.open(_pw.text)));
+  Future<void> _unlock() => _run(() async => _ready(await widget.vault.open(_pw.text), _pw.text));
 
   Widget _field(TextEditingController c, String label, {bool secret = false, int lines = 1, TextInputType? type, Key? key}) =>
       // label sits above the box (a floating label would be crossed by the notched border)
@@ -173,8 +222,15 @@ class _SetupScreenState extends State<SetupScreen> {
           const SizedBox(height: 40),
           Center(child: Text('GHILLIE', style: Gt.pixel(56))),
           const SizedBox(height: 32),
+          if (_quickSet) ...[
+            _primary('UNLOCK WITH ${quickUnlock.name.toUpperCase()}', _quick, key: const Key('setup-quick')),
+            const SizedBox(height: 20),
+            Center(child: Text('or type your password', style: Gt.body(13, color: Gc.text3))),
+            const SizedBox(height: 12),
+          ],
           _nodeField(),
           _field(_pw, 'Wallet password', secret: true, key: const Key('setup-pw')),
+          _rememberBox(),
           _primary('UNLOCK', _unlock, key: const Key('setup-unlock')),
         ];
       case _Step.newPassword:
@@ -187,6 +243,7 @@ class _SetupScreenState extends State<SetupScreen> {
           _nodeField(),
           _field(_pw, 'Password (at least $minPasswordLength characters)', secret: true, key: const Key('setup-pw')),
           _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
+          _rememberBox(),
           _primary('CREATE WALLET', _create, key: const Key('setup-make')),
           const SizedBox(height: 12),
           _secondary('BACK', () => _go(_Step.welcome)),
@@ -242,6 +299,7 @@ class _SetupScreenState extends State<SetupScreen> {
           _nodeField(),
           _field(_pw, 'New password for this phone', secret: true, key: const Key('setup-pw')),
           _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
+          _rememberBox(),
           _primary('RESTORE WALLET', _restore, key: const Key('setup-do-restore')),
           const SizedBox(height: 12),
           _secondary('BACK', () => _go(_Step.welcome)),

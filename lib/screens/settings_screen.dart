@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../wallet/quick_unlock.dart';
 import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
 
@@ -73,6 +74,7 @@ class SettingsScreen extends StatelessWidget {
                   )
                 else
                   row('Node', wallet.sync.nodeLabel),
+                if (quickUnlock.supported && !wallet.isDemo) _QuickUnlockRow(row: row),
                 row('Ghillie fee', '0 · never'),
                 row('Price lookups', 'off'),
                 row('Version', 'Ghillie $ghillieMobileVersion${wallet.isDemo ? ' (demo)' : ''}'),
@@ -88,5 +90,35 @@ class SettingsScreen extends StatelessWidget {
         ]),
       ),
     ));
+  }
+}
+
+class _QuickUnlockRow extends StatefulWidget {
+  final Widget Function(String, String) row;
+  const _QuickUnlockRow({required this.row});
+  @override
+  State<_QuickUnlockRow> createState() => _QuickUnlockRowState();
+}
+
+class _QuickUnlockRowState extends State<_QuickUnlockRow> {
+  bool? _set;
+  @override
+  void initState() {
+    super.initState();
+    quickUnlock.isSet().then((v) => mounted ? setState(() => _set = v) : null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = '${quickUnlock.name[0].toUpperCase()}${quickUnlock.name.substring(1)} unlock';
+    if (_set != true) return widget.row(label, 'off');
+    return InkWell(
+      key: const Key('settings-quick-off'),
+      onTap: () async {
+        await quickUnlock.clear();
+        if (mounted) setState(() => _set = false);
+      },
+      child: widget.row(label, 'on · turn off ›'),
+    );
   }
 }
