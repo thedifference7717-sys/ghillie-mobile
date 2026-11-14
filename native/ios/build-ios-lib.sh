@@ -85,13 +85,16 @@ fi
 
 echo "==> CAMO wallet library"
 B=$WORK/build/camo; mkdir -p "$B"
-cmake -S "$SRC" -B "$B" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN \
+# CMake's iOS mode sets the compiler; clear the configure-style variables so the translations helper that camo
+# builds and RUNS during the build is compiled for this Mac, not for iPhone
+NOENV="env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS"
+$NOENV cmake -S "$SRC" -B "$B" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN \
   -DCMAKE_OSX_SYSROOT="$SDK" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DCMAKE_PREFIX_PATH="$PREFIX" \
   -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
   -DBoost_USE_STATIC_LIBS=ON -DBOOST_ROOT="$PREFIX" -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$PREFIX" \
   -DSTATIC=ON -DBUILD_GUI_DEPS=ON -DBUILD_TESTS=OFF -DUSE_DEVICE_TREZOR=OFF -DUSE_READLINE=OFF -DBUILD_DOCUMENTATION=OFF \
   -DARCH=armv8-a -DCMAKE_BUILD_TYPE=Release
-cmake --build "$B" --target wallet_api -j$J > "$WORK/camo-build.log" 2>&1 || {
+$NOENV cmake --build "$B" --target wallet_api -j$J > "$WORK/camo-build.log" 2>&1 || {
   echo "camo build failed; errors:"; grep -E -B2 -A6 "error:|Error [0-9]|undefined|fatal" "$WORK/camo-build.log" | grep -v "warning:" | head -120; exit 1; }
 
 echo "==> bridge + one static library"
