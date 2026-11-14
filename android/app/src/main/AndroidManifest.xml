@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- the wallet talks to a CAMO node; no other network use -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="ghillie"
+        android:label="Ghillie"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
