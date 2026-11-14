@@ -71,10 +71,14 @@ if ! done_mark boost; then
     2e64e5d79a738d0fa6fb546c6e5c2bd28f88d268a2a080546f74e5ff98f29d0e
   cd "$WORK/build/boost-1.84.0"
   CC=clang CXX=clang++ CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= ./bootstrap.sh --with-libraries=chrono,date_time,filesystem,locale,program_options,regex,serialization,system,thread >/dev/null
-  echo "using darwin : iphone : $CXX -arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -std=c++14 ;" > user-config.jam
+  # Boost.Locale needs iconv (part of iOS); -liconv lets its configure check link
+  echo "using darwin : iphone : $CXX -arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -std=c++14 : <linkflags>-liconv ;" > user-config.jam
   ./b2 -j$J -d0 --user-config=user-config.jam toolset=darwin-iphone target-os=iphone architecture=arm address-model=64 \
     abi=aapcs binary-format=mach-o link=static threading=multi variant=release boost.locale.icu=off boost.locale.iconv=on \
-    --layout=system --prefix="$PREFIX" install
+    --layout=system --prefix="$PREFIX" install > "$WORK/b2.log" 2>&1 || {
+      echo "b2 failed; real errors (configure probes left out):"
+      grep -E "error:|failed updating|skipped <" "$WORK/b2.log" | grep -v "/config/\|/build/has_\|_test\.cpp\|has_" | head -60
+      tail -20 "$WORK/b2.log"; exit 1; }
   cd "$WORK"
   mark boost
 fi
