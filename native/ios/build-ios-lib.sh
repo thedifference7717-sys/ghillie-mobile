@@ -10,7 +10,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 PREFIX=$WORK/prefix; mkdir -p "$PREFIX" "$WORK/dl" "$WORK/build" "$WORK/out"
 SDK=$(xcrun --sdk iphoneos --show-sdk-path); MIN=15.0; J=$(sysctl -n hw.ncpu)
 export CC="$(xcrun --sdk iphoneos -f clang)" CXX="$(xcrun --sdk iphoneos -f clang++)"
-export CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -O2 -fembed-bitcode-marker"
+export CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -O2"
 export CXXFLAGS="$CFLAGS" LDFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN"
 HOSTARG=--host=aarch64-apple-darwin
 
@@ -20,13 +20,15 @@ fetch() { # url sha256 -> extracted dir name on stdout
   echo "$2  $f" | shasum -a 256 -c - >&2
   tar -C "$WORK/build" -xf "$f"
 }
+# on failure, show the end of the newest config.log
+trap 'f=$(ls -t $(find "$WORK/build" -name config.log 2>/dev/null) 2>/dev/null | head -1); [ -n "$f" ] && tail -n 40 "$f"' ERR
 done_mark() { [ -f "$PREFIX/.done-$1" ]; }
 mark() { touch "$PREFIX/.done-$1"; }
 
 if ! done_mark openssl; then
   fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.22/openssl-3.0.22.tar.gz \
     67ebca7e50d17383028045486653492195b83db95f8558709701bb47b5c1ef81
-  (cd "$WORK/build/openssl-3.0.22" && CFLAGS= CXXFLAGS= LDFLAGS= CC=clang ./Configure ios64-xcrun no-shared no-tests no-dso \
+  (cd "$WORK/build/openssl-3.0.22" && env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS ./Configure ios64-xcrun no-shared no-tests no-dso \
      no-engine -miphoneos-version-min=$MIN --prefix="$PREFIX" --libdir=lib >/dev/null && make -j$J >/dev/null && make install_sw >/dev/null)
   mark openssl
 fi
