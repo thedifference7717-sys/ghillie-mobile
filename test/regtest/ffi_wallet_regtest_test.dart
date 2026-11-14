@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghillie/wallet/amount.dart';
 import 'package:ghillie/wallet/ffi_wallet.dart';
 import 'package:ghillie/wallet/network.dart';
+import 'package:ghillie/wallet/vault.dart';
 import 'package:ghillie/wallet/wallet_service.dart';
 
 void main() {
@@ -29,6 +30,23 @@ void main() {
       File('$dir/a.addr').writeAsStringSync(a.receiveAddresses.first.address);
       final r = await b.newReceiveAddress('From Alice');
       File('$dir/b.addr').writeAsStringSync(r.address);
+
+      // vault: create with a password, wrong password refused, right one opens, the 25 words restore the same wallet
+      final v = FfiVault(libPath: lib, path: '$dir/c', network: CamoNetwork.mainnet, node: node);
+      expect(v.hasWallet, isFalse);
+      final (c, words) = await v.create('correct horse');
+      expect(words.length, 25);
+      final addr = c.receiveAddresses.first.address;
+      c.dispose();
+      expect(v.hasWallet, isTrue);
+      await expectLater(v.open('wrong password'), throwsA(isA<WrongPassword>()));
+      final c2 = await v.open('correct horse');
+      expect(c2.receiveAddresses.first.address, addr);
+      c2.dispose();
+      final d = await FfiVault(libPath: lib, path: '$dir/d', network: CamoNetwork.mainnet, node: node).restore(words, 'another one', 0);
+      expect(d.receiveAddresses.first.address, addr);
+      d.dispose();
+      stdout.writeln('vault ok');
     } else if (stage == 'send') {
       await until(() => a.unlockedBalance > CamoAmount.tryParse('10')!, 'unlocked funds');
       final to = File('$dir/b.addr').readAsStringSync();

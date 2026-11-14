@@ -1,0 +1,240 @@
+// Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
+//
+// First run and unlock: create a wallet (password -> 25 seed words -> check 3 of them), restore from the 25 words,
+// or unlock the existing wallet. The words come from the wallet library and are only held while shown.
+// TODO before release: block screenshots/recents previews while words are shown (Android FLAG_SECURE, iOS blur).
+import 'dart:math';
+import 'package:flutter/material.dart';
+import '../ui/theme.dart';
+import '../ui/widgets.dart';
+import '../wallet/vault.dart';
+import '../wallet/wallet_service.dart';
+
+const minPasswordLength = 8;
+
+class SetupScreen extends StatefulWidget {
+  final WalletVault vault;
+  final void Function(WalletService wallet) onReady;
+  const SetupScreen({super.key, required this.vault, required this.onReady});
+  @override
+  State<SetupScreen> createState() => _SetupScreenState();
+}
+
+enum _Step { welcome, unlock, newPassword, showWords, checkWords, restore }
+
+class _SetupScreenState extends State<SetupScreen> {
+  late _Step _step = widget.vault.hasWallet ? _Step.unlock : _Step.welcome;
+  final _pw = TextEditingController(), _pw2 = TextEditingController(), _words = TextEditingController(),
+      _height = TextEditingController(text: '0');
+  final _check = <int, TextEditingController>{};
+  List<String> _seed = const [];
+  WalletService? _created;
+  bool _wroteDown = false, _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    for (final c in [_pw, _pw2, _words, _height, ..._check.values]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _go(_Step s) => setState(() {
+        _step = s;
+        _error = null;
+      });
+
+  String? _passwordProblem() {
+    if (_pw.text.length < minPasswordLength) return 'Use at least $minPasswordLength characters.';
+    if (_pw.text != _pw2.text) return 'The two passwords are different.';
+    return null;
+  }
+
+  Future<void> _run(Future<void> Function() f) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await f();
+    } on WrongPassword {
+      _error = 'Wrong password.';
+    } catch (e) {
+      _error = '$e'.replaceFirst('Bad state: ', '');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _create() => _run(() async {
+        final p = _passwordProblem();
+        if (p != null) throw StateError(p);
+        final (w, words) = await widget.vault.create(_pw.text);
+        _created = w;
+        _seed = words;
+        final picks = (List.generate(words.length, (i) => i)..shuffle(Random.secure())).take(3).toList()..sort();
+        _check
+          ..clear()
+          ..addEntries(picks.map((i) => MapEntry(i, TextEditingController())));
+        _go(_Step.showWords);
+      });
+
+  void _confirmWords() {
+    final ok = _check.entries.every((e) => e.value.text.trim().toLowerCase() == _seed[e.key]);
+    if (!ok) {
+      setState(() => _error = 'One of the words does not match. Check your paper.');
+      return;
+    }
+    final w = _created!;
+    _seed = const [];
+    widget.onReady(w);
+  }
+
+  Future<void> _restore() => _run(() async {
+        final words = _words.text.trim().toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+        if (words.length != 25) throw StateError('Enter all 25 words (you entered ${words.length}).');
+        final h = int.tryParse(_height.text.trim());
+        if (h == null || h < 0) throw StateError('Restore height must be a block number (0 if unsure).');
+        final p = _passwordProblem();
+        if (p != null) throw StateError(p);
+        widget.onReady(await widget.vault.restore(words, _pw.text, h));
+      });
+
+  Future<void> _unlock() => _run(() async => widget.onReady(await widget.vault.open(_pw.text)));
+
+  Widget _field(TextEditingController c, String label, {bool secret = false, int lines = 1, TextInputType? type, Key? key}) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          key: key,
+          controller: c,
+          obscureText: secret,
+          minLines: lines,
+          maxLines: secret ? 1 : lines,
+          keyboardType: type,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: Gt.mono(14),
+          decoration: InputDecoration(labelText: label),
+        ),
+      );
+
+  Widget _primary(String text, VoidCallback? onTap, {Key? key}) => SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: FilledButton(key: key, onPressed: _busy ? null : onTap, child: Text(text, style: Gt.pixel(20, color: Gc.bg))),
+      );
+
+  Widget _secondary(String text, VoidCallback onTap, {Key? key}) => SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: OutlinedButton(key: key, onPressed: _busy ? null : onTap, child: Text(text, style: Gt.pixel(20))),
+      );
+
+  List<Widget> _body() {
+    switch (_step) {
+      case _Step.welcome:
+        return [
+          const SizedBox(height: 40),
+          Center(child: Text('GHILLIE', style: Gt.pixel(56))),
+          Center(child: Text('CAMO wallet', style: Gt.body(15, color: Gc.text2))),
+          const SizedBox(height: 40),
+          _primary('CREATE NEW WALLET', () => _go(_Step.newPassword), key: const Key('setup-create')),
+          const SizedBox(height: 12),
+          _secondary('RESTORE FROM 25 WORDS', () => _go(_Step.restore), key: const Key('setup-restore')),
+          const SizedBox(height: 24),
+          const ShieldLine('Your keys are made and kept on this device. Ghillie never sees them, and nobody can reset them for you.'),
+        ];
+      case _Step.unlock:
+        return [
+          const SizedBox(height: 40),
+          Center(child: Text('GHILLIE', style: Gt.pixel(56))),
+          const SizedBox(height: 32),
+          _field(_pw, 'Wallet password', secret: true, key: const Key('setup-pw')),
+          _primary('UNLOCK', _unlock, key: const Key('setup-unlock')),
+        ];
+      case _Step.newPassword:
+        return [
+          Text('Choose a password', style: Gt.pixel(28)),
+          const SizedBox(height: 8),
+          Text('It locks the wallet on this phone. Your 25 words, not this password, are what recover your coins.',
+              style: Gt.body(14, color: Gc.text2)),
+          const SizedBox(height: 16),
+          _field(_pw, 'Password (at least $minPasswordLength characters)', secret: true, key: const Key('setup-pw')),
+          _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
+          _primary('CREATE WALLET', _create, key: const Key('setup-make')),
+          const SizedBox(height: 12),
+          _secondary('BACK', () => _go(_Step.welcome)),
+        ];
+      case _Step.showWords:
+        return [
+          Text('Your 25 words', style: Gt.pixel(28)),
+          const SizedBox(height: 8),
+          NotchBox(
+            color: Gc.panelDark,
+            child: Text('Write them on paper, in order. Anyone with these words can take your coins. '
+                'Never type them into a website, a chat or a photo. Nobody from CAMO will ever ask for them.',
+                style: Gt.body(14, color: Gc.amber)),
+          ),
+          const SizedBox(height: 12),
+          NotchBox(
+            child: Wrap(spacing: 8, runSpacing: 8, children: [
+              for (var i = 0; i < _seed.length; i++)
+                SizedBox(
+                  width: 98,
+                  child: Text('${(i + 1).toString().padLeft(2)} ${_seed[i]}', style: Gt.mono(13)),
+                ),
+            ]),
+          ),
+          CheckboxListTile(
+            key: const Key('setup-wrote'),
+            contentPadding: EdgeInsets.zero,
+            value: _wroteDown,
+            onChanged: (v) => setState(() => _wroteDown = v ?? false),
+            title: Text('I wrote all 25 words on paper', style: Gt.body(14)),
+          ),
+          _primary('CONTINUE', _wroteDown ? () => _go(_Step.checkWords) : null, key: const Key('setup-continue')),
+        ];
+      case _Step.checkWords:
+        return [
+          Text('Check your paper', style: Gt.pixel(28)),
+          const SizedBox(height: 8),
+          Text('Type these words from your paper.', style: Gt.body(14, color: Gc.text2)),
+          const SizedBox(height: 16),
+          for (final e in _check.entries) _field(e.value, 'Word #${e.key + 1}', key: Key('setup-check-${e.key}')),
+          _primary('OPEN WALLET', _confirmWords, key: const Key('setup-confirm')),
+          const SizedBox(height: 12),
+          _secondary('SHOW THE WORDS AGAIN', () => _go(_Step.showWords)),
+        ];
+      case _Step.restore:
+        return [
+          Text('Restore', style: Gt.pixel(28)),
+          const SizedBox(height: 8),
+          Text('Type your 25 words, separated by spaces.', style: Gt.body(14, color: Gc.text2)),
+          const SizedBox(height: 16),
+          _field(_words, '25 words', lines: 4, key: const Key('setup-words')),
+          _field(_height, 'Restore height (block number; 0 scans everything)', type: TextInputType.number, key: const Key('setup-height')),
+          _field(_pw, 'New password for this phone', secret: true, key: const Key('setup-pw')),
+          _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
+          _primary('RESTORE WALLET', _restore, key: const Key('setup-do-restore')),
+          const SizedBox(height: 12),
+          _secondary('BACK', () => _go(_Step.welcome)),
+        ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 32), children: [
+            ..._body(),
+            if (_busy) const Padding(padding: EdgeInsets.only(top: 16), child: Center(child: CircularProgressIndicator())),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(_error!, key: const Key('setup-error'), style: Gt.body(14, color: Gc.danger)),
+              ),
+          ]),
+        ),
+      );
+}

@@ -8,6 +8,7 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 import 'amount.dart';
 import 'network.dart';
+import 'vault.dart';
 import 'wallet_service.dart';
 
 typedef _P = Pointer<Void>;
@@ -18,6 +19,9 @@ class _Lib {
   _Lib(this.d);
   late final open = d.lookupFunction<_P Function(_S, _S, Int32), _P Function(_S, _S, int)>('camo_wallet_open');
   late final create = d.lookupFunction<_P Function(_S, _S, _S, Int32), _P Function(_S, _S, _S, int)>('camo_wallet_create');
+  late final restoreSeed = d.lookupFunction<_P Function(_S, _S, _S, Int32, Uint64), _P Function(_S, _S, _S, int, int)>('camo_wallet_restore_seed');
+  late final seed = d.lookupFunction<_S Function(_P), _S Function(_P)>('camo_wallet_seed');
+  late final close = d.lookupFunction<Int32 Function(_P, Int32), int Function(_P, int)>('camo_wallet_close');
   late final exists = d.lookupFunction<Int32 Function(_S), int Function(_S)>('camo_wallet_exists');
   late final lastError = d.lookupFunction<_S Function(), _S Function()>('camo_last_error');
   late final error = d.lookupFunction<_S Function(_P), _S Function(_P)>('camo_wallet_error');
@@ -67,20 +71,29 @@ class FfiWallet extends WalletService {
   FfiWallet._(this._l, this._w, this.network, this.walletName, this.nodeAddress)
       : _sync = SyncState(connected: false, walletHeight: 0, chainHeight: 0, nodeLabel: nodeAddress);
 
-  /// Opens the wallet at [path], or creates it if there is none (empty password: development only).
+  /// Opens the wallet at [path], or creates it if there is none (empty password: development and tests only).
   static FfiWallet openOrCreate({required String libPath, required String path, required CamoNetwork network, required String node}) {
     final l = _Lib(DynamicLibrary.open(libPath));
-    return using((a) {
+    final w = using((a) {
       final p = path.toNativeUtf8(allocator: a), pw = ''.toNativeUtf8(allocator: a);
-      final w = l.exists(p) == 1 ? l.open(p, pw, _netCode(network)) : l.create(p, pw, 'English'.toNativeUtf8(allocator: a), _netCode(network));
-      if (w == nullptr) throw StateError(l.lastError().toDartString());
-      if (l.connect(w, node.toNativeUtf8(allocator: a), 1) != 1) throw StateError(l.error(w).toDartString());
-      l.startRefresh(w);
-      final fw = FfiWallet._(l, w, network, path.split('/').last, node);
-      fw._poll();
-      fw._timer = Timer.periodic(const Duration(seconds: 2), (_) => fw._poll());
-      return fw;
+      return l.exists(p) == 1 ? l.open(p, pw, _netCode(network)) : l.create(p, pw, 'English'.toNativeUtf8(allocator: a), _netCode(network));
     });
+    return _start(l, w, path, network, node);
+  }
+
+  static FfiWallet _start(_Lib l, _P w, String path, CamoNetwork network, String node) {
+    if (w == nullptr) throw StateError(l.lastError().toDartString());
+    final ok = using((a) => l.connect(w, node.toNativeUtf8(allocator: a), 1));
+    if (ok != 1) {
+      final e = l.error(w).toDartString();
+      l.close(w, 0);
+      throw StateError(e);
+    }
+    l.startRefresh(w);
+    final fw = FfiWallet._(l, w, network, path.split('/').last, node);
+    fw._poll();
+    fw._timer = Timer.periodic(const Duration(seconds: 2), (_) => fw._poll());
+    return fw;
   }
 
   void _poll() {
@@ -173,7 +186,48 @@ class FfiWallet extends WalletService {
   @override
   void dispose() {
     _timer?.cancel();
-    _l.store(_w);
+    _l.close(_w, 1);
     super.dispose();
+  }
+}
+
+/// The device's wallet file through the real library. [node] is the CAMO node to sync from (host:port).
+class FfiVault extends WalletVault {
+  final _Lib _l;
+  final String path;
+  final CamoNetwork network;
+  final String node;
+  FfiVault({required String libPath, required this.path, required this.network, required this.node})
+      : _l = _Lib(DynamicLibrary.open(libPath));
+
+  @override
+  bool get hasWallet => using((a) => _l.exists(path.toNativeUtf8(allocator: a)) == 1);
+
+  @override
+  Future<(WalletService, List<String>)> create(String password) async {
+    final w = using((a) => _l.create(path.toNativeUtf8(allocator: a), password.toNativeUtf8(allocator: a),
+        'English'.toNativeUtf8(allocator: a), _netCode(network)));
+    if (w == nullptr) throw StateError(_l.lastError().toDartString());
+    final words = _l.seed(w).toDartString().split(' ');
+    return (FfiWallet._start(_l, w, path, network, node) as WalletService, words);
+  }
+
+  @override
+  Future<WalletService> restore(List<String> words, String password, int restoreHeight) async {
+    final w = using((a) => _l.restoreSeed(path.toNativeUtf8(allocator: a), password.toNativeUtf8(allocator: a),
+        words.join(' ').toNativeUtf8(allocator: a), _netCode(network), restoreHeight));
+    if (w == nullptr) throw StateError(_l.lastError().toDartString());
+    return FfiWallet._start(_l, w, path, network, node);
+  }
+
+  @override
+  Future<WalletService> open(String password) async {
+    final w = using((a) => _l.open(path.toNativeUtf8(allocator: a), password.toNativeUtf8(allocator: a), _netCode(network)));
+    if (w == nullptr) {
+      final e = _l.lastError().toDartString();
+      if (e.toLowerCase().contains('password')) throw const WrongPassword();
+      throw StateError(e);
+    }
+    return FfiWallet._start(_l, w, path, network, node);
   }
 }
