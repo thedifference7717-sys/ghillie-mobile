@@ -2,8 +2,10 @@
 //
 // WalletService backed by CAMO's real wallet library through native/camo_wallet_ffi (dart:ffi).
 // The library's own background thread keeps the wallet in sync; this class polls it every 2 seconds.
-// TODO before release: run prepare/commit on a background isolate so a slow node can't freeze the screen.
+// Building and broadcasting a transaction can take seconds (it fetches decoys from the node), so those two calls run
+// on a background isolate; the wallet library is thread-safe for this (desktop Ghillie does the same from a worker).
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:ffi';
 import 'dart:io';
 import 'package:ffi/ffi.dart';
@@ -17,7 +19,8 @@ typedef _S = Pointer<Utf8>;
 
 class _Lib {
   final DynamicLibrary d;
-  _Lib(this.d);
+  final String? path; // null = linked into the app (iOS)
+  _Lib(this.path) : d = path == null ? DynamicLibrary.process() : DynamicLibrary.open(path);
   late final open = d.lookupFunction<_P Function(_S, _S, Int32), _P Function(_S, _S, int)>('camo_wallet_open');
   late final create = d.lookupFunction<_P Function(_S, _S, _S, Int32), _P Function(_S, _S, _S, int)>('camo_wallet_create');
   late final restoreSeed = d.lookupFunction<_P Function(_S, _S, _S, Int32, Uint64), _P Function(_S, _S, _S, int, int)>('camo_wallet_restore_seed');
@@ -50,6 +53,19 @@ class _Lib {
   late final discard = d.lookupFunction<Void Function(_P), void Function(_P)>('camo_wallet_discard');
 }
 
+// Background-isolate halves of prepareSend/commitSend: plain values in and out (pointers as addresses).
+String? _prepareOff(String? lib, int w, String address, int amount, int sweep, int priority) {
+  final l = _Lib(lib);
+  final ok = using((a) => l.prepare(Pointer.fromAddress(w), address.toNativeUtf8(allocator: a), amount, sweep, priority));
+  return ok == 1 ? null : l.lastError().toDartString();
+}
+
+(String?, String?) _commitOff(String? lib, int w) {
+  final l = _Lib(lib);
+  final r = l.commit(Pointer.fromAddress(w));
+  return r == nullptr ? (null, l.lastError().toDartString()) : (r.toDartString(), null);
+}
+
 // uint64 arrives as a Dart int (two's complement); convert to an unsigned BigInt
 BigInt _u64(int v) => v >= 0 ? BigInt.from(v) : BigInt.from(v) + (BigInt.one << 64);
 CamoAmount _amt(int v) => CamoAmount.atomic(_u64(v));
@@ -74,7 +90,7 @@ class FfiWallet extends WalletService {
 
   /// Opens the wallet at [path], or creates it if there is none (empty password: development and tests only).
   static FfiWallet openOrCreate({required String libPath, required String path, required CamoNetwork network, required String node}) {
-    final l = _Lib(DynamicLibrary.open(libPath));
+    final l = _Lib(libPath);
     final w = using((a) {
       final p = path.toNativeUtf8(allocator: a), pw = ''.toNativeUtf8(allocator: a);
       return l.exists(p) == 1 ? l.open(p, pw, _netCode(network)) : l.create(p, pw, 'English'.toNativeUtf8(allocator: a), _netCode(network));
@@ -160,6 +176,10 @@ class FfiWallet extends WalletService {
   @override
   bool isValidAddress(String address) => using((a) => _l.valid(address.toNativeUtf8(allocator: a), _netCode(network)) == 1);
 
+  String? _preparedKey; // which draft the library's pending transaction was built for
+
+  static String _key(String address, CamoAmount amount, bool sweepAll, Priority p) => '$address|${amount.atomic}|$sweepAll|${p.name}';
+
   @override
   Future<SendDraft> prepareSend({required String address, required CamoAmount amount, required bool sweepAll, required Priority priority}) async {
     if (!isValidAddress(address)) {
@@ -167,21 +187,27 @@ class FfiWallet extends WalletService {
       return SendDraft(address: address, amount: amount, sweepAll: sweepAll, priority: priority, fee: CamoAmount.tryParse('0.0013')!);
     }
     final pr = switch (priority) { Priority.low => 1, Priority.normal => 2, Priority.fast => 3 };
-    final ok = using((a) => _l.prepare(_w, address.toNativeUtf8(allocator: a), amount.atomic.toUnsigned(64).toInt(), sweepAll ? 1 : 0, pr));
-    if (ok != 1) throw StateError(_l.lastError().toDartString());
+    final (lib, w, amt, sweep) = (_l.path, _w.address, amount.atomic.toUnsigned(64).toInt(), sweepAll ? 1 : 0);
+    _preparedKey = null;
+    final err = await Isolate.run(() => _prepareOff(lib, w, address, amt, sweep, pr));
+    if (err != null) throw StateError(err);
+    _preparedKey = _key(address, amount, sweepAll, priority);
     return SendDraft(address: address, amount: _amt(_l.prepAmount(_w)), sweepAll: sweepAll, priority: priority, fee: _amt(_l.prepFee(_w)));
   }
 
   @override
   Future<String> commitSend(SendDraft draft) async {
-    // re-prepare exactly what was reviewed, then broadcast
-    await prepareSend(address: draft.address, amount: draft.amount, sweepAll: draft.sweepAll, priority: draft.priority);
-    final r = _l.commit(_w);
-    if (r == nullptr) throw StateError(_l.lastError().toDartString());
-    final id = r.toDartString();
+    // broadcast exactly the transaction that was reviewed; rebuild only if the draft changed since
+    if (_preparedKey != _key(draft.address, draft.amount, draft.sweepAll, draft.priority)) {
+      await prepareSend(address: draft.address, amount: draft.amount, sweepAll: draft.sweepAll, priority: draft.priority);
+    }
+    final (lib, w) = (_l.path, _w.address);
+    final (txid, err) = await Isolate.run(() => _commitOff(lib, w));
+    _preparedKey = null;
+    if (txid == null) throw StateError(err ?? 'send failed');
     _lastHeight = -1;
     _poll();
-    return id;
+    return txid;
   }
 
   @override
@@ -203,7 +229,7 @@ class FfiVault extends WalletVault {
 
   /// [libPath] null = the library is linked into the app itself (iOS). The chosen node is remembered in `<path>.node`.
   FfiVault({String? libPath, required this.path, required this.network, String? node, this.askNode = false})
-      : _l = _Lib(libPath == null ? DynamicLibrary.process() : DynamicLibrary.open(libPath)),
+      : _l = _Lib(libPath),
         _node = node ?? _readNode(path);
 
   static String _readNode(String path) {
