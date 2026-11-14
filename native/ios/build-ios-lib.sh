@@ -41,7 +41,7 @@ mark() { touch "$PREFIX/.done-$1"; }
 if ! done_mark openssl; then
   fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.22/openssl-3.0.22.tar.gz \
     67ebca7e50d17383028045486653492195b83db95f8558709701bb47b5c1ef81
-  (cd "$BUILD/openssl-3.0.22" && env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS ./Configure $OSSL -arch $ARCHF no-shared no-tests no-dso \
+  (cd "$BUILD/openssl-3.0.22" && env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS ./Configure $OSSL "-arch $ARCHF" no-shared no-tests no-dso \
      no-engine $MINF=$MIN --prefix="$PREFIX" --libdir=lib >/dev/null && make -j$J >/dev/null && make install_sw >/dev/null)
   mark openssl
 fi
