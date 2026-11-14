@@ -11,6 +11,8 @@ PREFIX=$WORK/prefix; mkdir -p "$PREFIX" "$WORK/dl" "$WORK/build" "$WORK/out"
 SDK=$(xcrun --sdk iphoneos --show-sdk-path); MIN=15.0; J=$(sysctl -n hw.ncpu)
 export CC="$(xcrun --sdk iphoneos -f clang)" CXX="$(xcrun --sdk iphoneos -f clang++)"
 export CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -O2"
+# configure's header checks use the preprocessor, which reads CPPFLAGS only: give it the iPhone SDK too
+export CPPFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN"
 export CXXFLAGS="$CFLAGS" LDFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN"
 # a host triplet different from the build Mac (also arm64) makes configure cross-compile instead of running iPhone binaries
 HOSTARG="--host=arm-apple-darwin --build=aarch64-apple-darwin"
@@ -29,7 +31,7 @@ mark() { touch "$PREFIX/.done-$1"; }
 if ! done_mark openssl; then
   fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.22/openssl-3.0.22.tar.gz \
     67ebca7e50d17383028045486653492195b83db95f8558709701bb47b5c1ef81
-  (cd "$WORK/build/openssl-3.0.22" && env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS ./Configure ios64-xcrun no-shared no-tests no-dso \
+  (cd "$WORK/build/openssl-3.0.22" && env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS ./Configure ios64-xcrun no-shared no-tests no-dso \
      no-engine -miphoneos-version-min=$MIN --prefix="$PREFIX" --libdir=lib >/dev/null && make -j$J >/dev/null && make install_sw >/dev/null)
   mark openssl
 fi
@@ -68,7 +70,7 @@ if ! done_mark boost; then
   fetch https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.xz \
     2e64e5d79a738d0fa6fb546c6e5c2bd28f88d268a2a080546f74e5ff98f29d0e
   cd "$WORK/build/boost-1.84.0"
-  CC=clang CXX=clang++ CFLAGS= CXXFLAGS= LDFLAGS= ./bootstrap.sh --with-libraries=chrono,date_time,filesystem,locale,program_options,regex,serialization,system,thread >/dev/null
+  CC=clang CXX=clang++ CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= ./bootstrap.sh --with-libraries=chrono,date_time,filesystem,locale,program_options,regex,serialization,system,thread >/dev/null
   echo "using darwin : iphone : $CXX -arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -std=c++14 ;" > user-config.jam
   ./b2 -j$J -d0 --user-config=user-config.jam toolset=darwin-iphone target-os=iphone architecture=arm address-model=64 \
     abi=aapcs binary-format=mach-o link=static threading=multi variant=release boost.locale.icu=off boost.locale.iconv=on \
