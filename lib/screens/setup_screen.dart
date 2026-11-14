@@ -2,9 +2,10 @@
 //
 // First run and unlock: create a wallet (password -> 25 seed words -> check 3 of them), restore from the 25 words,
 // or unlock the existing wallet. The words come from the wallet library and are only held while shown.
-// TODO before release: block screenshots/recents previews while words are shown (Android FLAG_SECURE, iOS blur).
+// While the words are shown the screen is Sensitive: no Android screenshots, covered in app switchers.
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../ui/sensitive.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/vault.dart';
@@ -249,7 +250,12 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final page = _page(context);
+    return _step == _Step.showWords || _step == _Step.checkWords ? Sensitive(child: page) : page;
+  }
+
+  Widget _page(BuildContext context) => Scaffold(
         body: SafeArea(
           child: ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 32), children: [
             ..._body(),

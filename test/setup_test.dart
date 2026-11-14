@@ -21,6 +21,7 @@ Future<void> tapKey(WidgetTester t, String k) async {
 void main() {
   nodeTests();
   settingsNodeTest();
+  sensitiveTest();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -144,5 +145,23 @@ void settingsNodeTest() {
     await t.pumpAndSettle();
     expect(w.node, '3.134.132.214:39749');
     expect(find.textContaining('3.134.132.214:39749'), findsOneWidget);
+  });
+}
+
+void sensitiveTest() {
+  testWidgets('the 25 words are covered when the app goes to the background', (t) async {
+    await phone(t);
+    await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
+    await tapKey(t, 'setup-create');
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-make');
+    expect(find.byKey(const Key('sensitive-cover')), findsNothing);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await t.pump();
+    expect(find.byKey(const Key('sensitive-cover')), findsOneWidget);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    expect(find.byKey(const Key('sensitive-cover')), findsNothing);
   });
 }
