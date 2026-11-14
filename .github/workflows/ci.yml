@@ -70,8 +70,24 @@ jobs:
   ios:
     needs: test
     runs-on: macos-15
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
+      - name: wallet engine from the latest good "ios wallet library" run (if any)
+        id: engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" -w ios-lib.yml -s success -L 1 --json databaseId -q '.[0].databaseId' || true)
+          if [ -n "$RUN" ] && gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n ios-libcamo_wallet-arm64 -D ios/Engine; then
+            # linked into the app; the Dart side finds it with DynamicLibrary.process()
+            echo 'OTHER_LDFLAGS = $(inherited) -force_load "$(PROJECT_DIR)/Engine/libcamo_wallet.a" -lc++ -liconv -lz -framework Security -framework SystemConfiguration' > ios/Flutter/Engine.xcconfig
+            echo "name=ghillie-ios-stagenet-unsigned" >> "$GITHUB_OUTPUT"; echo "engine from run $RUN"
+          else
+            echo "name=ghillie-ios-demo-unsigned" >> "$GITHUB_OUTPUT"; echo "no engine yet: demo build"
+          fi
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -80,5 +96,5 @@ jobs:
       - run: cd build/ios/iphoneos && zip -qr ghillie-ios-unsigned.zip Runner.app
       - uses: actions/upload-artifact@v4
         with:
-          name: ghillie-ios-demo-unsigned
+          name: ${{ steps.engine.outputs.name }}
           path: build/ios/iphoneos/ghillie-ios-unsigned.zip
