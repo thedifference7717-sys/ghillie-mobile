@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghillie/main.dart';
+import 'package:ghillie/screens/settings_screen.dart';
+import 'package:ghillie/wallet/demo_wallet.dart';
 import 'package:ghillie/wallet/vault.dart';
+import 'package:ghillie/wallet/wallet_service.dart';
 
 Future<void> phone(WidgetTester t) async {
   t.view.physicalSize = const Size(390, 844) * 3;
@@ -17,6 +20,7 @@ Future<void> tapKey(WidgetTester t, String k) async {
 
 void main() {
   nodeTests();
+  settingsNodeTest();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -108,5 +112,37 @@ void nodeTests() {
     await tapKey(t, 'setup-make');
     expect(find.text('Your 25 words'), findsOneWidget);
     expect(v.node, '3.134.132.214:39741');
+  });
+}
+
+class _NodeWallet extends DemoWallet {
+  String node = '1.2.3.4:39749';
+  @override
+  bool get canChangeNode => true;
+  @override
+  SyncState get sync => SyncState(connected: true, walletHeight: 10, chainHeight: 10, nodeLabel: node);
+  @override
+  Future<void> changeNode(String n) async {
+    node = n;
+    notifyListeners();
+  }
+}
+
+void settingsNodeTest() {
+  testWidgets('settings: change node, bad address refused', (t) async {
+    await phone(t);
+    final w = _NodeWallet();
+    await t.pumpWidget(MaterialApp(home: SettingsScreen(wallet: w)));
+    await t.tap(find.byKey(const Key('settings-node')));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const Key('node-field')), 'nope');
+    await t.tap(find.byKey(const Key('node-save')));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Use host:port'), findsOneWidget);
+    await t.enterText(find.byKey(const Key('node-field')), '3.134.132.214:39749');
+    await t.tap(find.byKey(const Key('node-save')));
+    await t.pumpAndSettle();
+    expect(w.node, '3.134.132.214:39749');
+    expect(find.textContaining('3.134.132.214:39749'), findsOneWidget);
   });
 }

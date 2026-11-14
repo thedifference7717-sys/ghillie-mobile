@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
 
 const ghillieMobileVersion = '0.1.0';
@@ -9,13 +10,53 @@ const ghillieMobileVersion = '0.1.0';
 class SettingsScreen extends StatelessWidget {
   final WalletService wallet;
   const SettingsScreen({super.key, required this.wallet});
+  Future<void> _changeNode(BuildContext context) async {
+    final c = TextEditingController(text: wallet.sync.nodeLabel);
+    String? error;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: Text('CAMO node', style: Gt.pixel(24)),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            TextField(key: const Key('node-field'), controller: c, autocorrect: false, style: Gt.mono(14),
+                decoration: const InputDecoration(hintText: 'host:port')),
+            const SizedBox(height: 8),
+            Text(error ?? 'The node sees your IP address but never your keys or balance.',
+                style: Gt.body(13, color: error == null ? Gc.text3 : Gc.danger)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              key: const Key('node-save'),
+              onPressed: () async {
+                if (!looksLikeNode(c.text)) {
+                  set(() => error = 'Use host:port, e.g. node.example.org:39749.');
+                  return;
+                }
+                try {
+                  await wallet.changeNode(c.text.trim());
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  set(() => error = 'Could not connect: $e'.replaceFirst('Bad state: ', ''));
+                }
+              },
+              child: const Text('Connect'),
+            ),
+          ],
+        ),
+      ),
+    );
+    // not disposed here: the dialog's closing animation still reads it; it is collected with the dialog
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget row(String a, String b) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(children: [Expanded(child: Text(a, style: Gt.body(14, color: Gc.text2))), Text(b, style: Gt.mono(13))]),
         );
-    return Scaffold(
+    return ListenableBuilder(listenable: wallet, builder: (context, _) => Scaffold(
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
           const ScreenHeader('SETTINGS'),
@@ -24,7 +65,14 @@ class SettingsScreen extends StatelessWidget {
             child: NotchBox(
               child: Column(children: [
                 row('Network', wallet.network.label),
-                row('Node', wallet.sync.nodeLabel),
+                if (wallet.canChangeNode)
+                  InkWell(
+                    key: const Key('settings-node'),
+                    onTap: () => _changeNode(context),
+                    child: row('Node', '${wallet.sync.nodeLabel}  ›'),
+                  )
+                else
+                  row('Node', wallet.sync.nodeLabel),
                 row('Ghillie fee', '0 · never'),
                 row('Price lookups', 'off'),
                 row('Version', 'Ghillie $ghillieMobileVersion${wallet.isDemo ? ' (demo)' : ''}'),
@@ -39,6 +87,6 @@ class SettingsScreen extends StatelessWidget {
           ),
         ]),
       ),
-    );
+    ));
   }
 }

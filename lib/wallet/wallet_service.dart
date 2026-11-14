@@ -77,4 +77,8 @@ abstract class WalletService extends ChangeNotifier {
   /// Builds (but does not broadcast) a transaction and returns its real fee.
   Future<SendDraft> prepareSend({required String address, required CamoAmount amount, required bool sweepAll, required Priority priority});
   Future<String> commitSend(SendDraft draft); // returns txid
+
+  /// Switches to another CAMO node (host:port); false if this wallet can't change nodes (demo).
+  bool get canChangeNode => false;
+  Future<void> changeNode(String node) async => throw UnsupportedError('This wallet cannot change nodes.');
 }

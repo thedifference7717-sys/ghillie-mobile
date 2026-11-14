@@ -78,7 +78,8 @@ class FfiWallet extends WalletService {
   final CamoNetwork network;
   @override
   final String walletName;
-  final String nodeAddress;
+  String nodeAddress;
+  void Function(String node)? onNodeChanged; // the vault remembers the choice
   Timer? _timer;
   SyncState _sync;
   CamoAmount _bal = CamoAmount.zero, _unl = CamoAmount.zero;
@@ -176,6 +177,18 @@ class FfiWallet extends WalletService {
   @override
   bool isValidAddress(String address) => using((a) => _l.valid(address.toNativeUtf8(allocator: a), _netCode(network)) == 1);
 
+  @override
+  bool get canChangeNode => true;
+
+  @override
+  Future<void> changeNode(String node) async {
+    final ok = using((a) => _l.connect(_w, node.toNativeUtf8(allocator: a), 1));
+    if (ok != 1) throw StateError(_l.error(_w).toDartString());
+    nodeAddress = node;
+    onNodeChanged?.call(node);
+    _poll();
+  }
+
   String? _preparedKey; // which draft the library's pending transaction was built for
 
   static String _key(String address, CamoAmount amount, bool sweepAll, Priority p) => '$address|${amount.atomic}|$sweepAll|${p.name}';
@@ -259,7 +272,7 @@ class FfiVault extends WalletVault {
         'English'.toNativeUtf8(allocator: a), _netCode(network)));
     if (w == nullptr) throw StateError(_l.lastError().toDartString());
     final words = _l.seed(w).toDartString().split(' ');
-    return (FfiWallet._start(_l, w, path, network, node) as WalletService, words);
+    return (_wire(FfiWallet._start(_l, w, path, network, node)) as WalletService, words);
   }
 
   @override
@@ -267,7 +280,7 @@ class FfiVault extends WalletVault {
     final w = using((a) => _l.restoreSeed(path.toNativeUtf8(allocator: a), password.toNativeUtf8(allocator: a),
         words.join(' ').toNativeUtf8(allocator: a), _netCode(network), restoreHeight));
     if (w == nullptr) throw StateError(_l.lastError().toDartString());
-    return FfiWallet._start(_l, w, path, network, node);
+    return _wire(FfiWallet._start(_l, w, path, network, node));
   }
 
   @override
@@ -278,6 +291,8 @@ class FfiVault extends WalletVault {
       if (e.toLowerCase().contains('password')) throw const WrongPassword();
       throw StateError(e);
     }
-    return FfiWallet._start(_l, w, path, network, node);
+    return _wire(FfiWallet._start(_l, w, path, network, node));
   }
+
+  FfiWallet _wire(FfiWallet w) => w..onNodeChanged = (n) => node = n;
 }

@@ -26,6 +26,14 @@ void main() {
     final b = FfiWallet.openOrCreate(libPath: lib, path: '$dir/b', network: CamoNetwork.mainnet, node: node);
     await until(() => a.sync.connected && a.sync.chainHeight > 0 && a.sync.walletHeight >= a.sync.chainHeight, 'sync');
     await until(() => b.sync.connected && b.sync.chainHeight > 0 && b.sync.walletHeight >= b.sync.chainHeight, 'sync B');
+    if (stage == 'sync') {
+      // switching nodes on a live wallet (Settings > Node): reconnect to the full port, then back
+      await a.changeNode(node.replaceFirst(':19749', ':19741'));
+      await until(() => a.sync.connected && a.sync.nodeLabel.endsWith(':19741'), 'node switch');
+      await a.changeNode(node);
+      await until(() => a.sync.connected, 'node switch back');
+      stdout.writeln('node switch ok');
+    }
     if (stage == 'create') {
       File('$dir/a.addr').writeAsStringSync(a.receiveAddresses.first.address);
       final r = await b.newReceiveAddress('From Alice');
