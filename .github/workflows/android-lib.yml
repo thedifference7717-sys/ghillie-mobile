@@ -20,7 +20,7 @@ jobs:
       HOST: aarch64-linux-android
     steps:
       - name: tools
-        run: apt-get update && apt-get -y install build-essential libtool cmake autotools-dev automake pkg-config python3 python gperf bsdmainutils curl git ca-certificates unzip ccache file
+        run: apt-get update && apt-get -y install build-essential libtool cmake autotools-dev automake pkg-config python3 python gperf bsdmainutils curl git ca-certificates unzip ccache file libtinfo5 libncurses5
       - run: git config --global --add safe.directory '*'
       - uses: actions/checkout@v5
       - name: get camo
@@ -31,7 +31,9 @@ jobs:
           path: camo/contrib/depends/built
           key: depends-${{ env.HOST }}-${{ hashFiles('camo/contrib/depends/packages/*') }}
       - name: depends
-        run: make -C camo/contrib/depends HOST=$HOST -j4
+        run: |
+          make -C camo/contrib/depends HOST=$HOST -j4 || {
+            find camo/contrib/depends/work -name config.log -newer camo/Makefile | xargs -r tail -n 60; exit 1; }
       - name: wallet library
         run: |
           mkdir -p camo/build/android && cd camo/build/android
