@@ -25,6 +25,7 @@ void main() {
   sensitiveTest();
   quickUnlockTests();
   lockTests();
+  lockWithQuickTest();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -264,5 +265,27 @@ void lockTests() {
     expect(await q.isSet(), isTrue);
     await openSettings(t);
     expect(find.textContaining('on · turn off'), findsOneWidget);
+  });
+}
+
+void lockWithQuickTest() {
+  testWidgets('with Face ID on, Lock really locks: Face ID waits for a tap', (t) async {
+    await phone(t);
+    final q = MemoryQuickUnlock();
+    quickUnlock = q;
+    addTearDown(() => quickUnlock = NoQuickUnlock());
+    await q.save('correct horse');
+    final v = DemoVault(hasWallet: true);
+    await v.restore(DemoVault.sampleWords, 'correct horse', 0);
+    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+    await t.pumpAndSettle();
+    expect(find.text('1,239.63'), findsOneWidget); // app start: Face ID opened it
+    await t.tap(find.bySemanticsLabel('Settings'));
+    await t.pumpAndSettle();
+    await tapKey(t, 'settings-lock');
+    expect(find.byKey(const Key('setup-quick')), findsOneWidget); // locked, waiting
+    expect(find.text('1,239.63'), findsNothing);
+    await tapKey(t, 'setup-quick');
+    expect(find.text('1,239.63'), findsOneWidget);
   });
 }

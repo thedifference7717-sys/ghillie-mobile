@@ -60,6 +60,7 @@ class _GhillieAppState extends State<GhillieApp> {
   late bool _intro = widget.showIntro;
   late WalletService? _wallet = widget.wallet;
   bool _turnOnQuick = false;
+  bool _lockedByUser = false; // after Settings > Lock, Face ID waits for a tap instead of popping up at once
 
   @override
   void initState() {
@@ -78,6 +79,7 @@ class _GhillieAppState extends State<GhillieApp> {
     setState(() {
       _wallet = null;
       _turnOnQuick = turnOnQuickUnlock;
+      _lockedByUser = true;
     });
     w?.dispose(); // closes and saves the wallet file; the keys leave memory
   }
@@ -92,9 +94,10 @@ class _GhillieAppState extends State<GhillieApp> {
               ? ScopeIntro(key: const ValueKey('intro'), onEnter: () => setState(() => _intro = false))
               : _wallet == null
                   ? SetupScreen(
-                      key: ValueKey('setup-$_turnOnQuick'),
+                      key: ValueKey('setup-$_turnOnQuick-$_lockedByUser'),
                       vault: widget.vault!,
                       rememberNext: _turnOnQuick,
+                      autoQuickUnlock: !_lockedByUser,
                       onReady: (w) => setState(() => _wallet = w))
                   : HomeScreen(key: const ValueKey('home'), wallet: _wallet!),
         ),

@@ -19,7 +19,10 @@ class SetupScreen extends StatefulWidget {
   final void Function(WalletService wallet) onReady;
   /// Opened from Settings > "turn on Face ID": the remember box starts ticked and Face ID is not offered.
   final bool rememberNext;
-  const SetupScreen({super.key, required this.vault, required this.onReady, this.rememberNext = false});
+  /// Ask for Face ID / fingerprint as soon as the screen opens (app start). False after the user locks the wallet
+  /// on purpose: then it waits for a tap on "UNLOCK WITH FACE ID".
+  final bool autoQuickUnlock;
+  const SetupScreen({super.key, required this.vault, required this.onReady, this.rememberNext = false, this.autoQuickUnlock = true});
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
@@ -45,7 +48,7 @@ class _SetupScreenState extends State<SetupScreen> {
       quickUnlock.isSet().then((set) {
         if (!mounted || !set) return;
         setState(() => _quickSet = true);
-        _quick(); // offer Face ID / fingerprint right away, like banking apps; the password stays available
+        if (widget.autoQuickUnlock) _quick(); // app start: offer Face ID / fingerprint right away; the password stays available
       });
     }
   }
