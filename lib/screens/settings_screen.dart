@@ -1,5 +1,6 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
 import 'package:flutter/material.dart';
+import '../ui/app_lock.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/quick_unlock.dart';
@@ -74,13 +75,29 @@ class SettingsScreen extends StatelessWidget {
                   )
                 else
                   row('Node', wallet.sync.nodeLabel),
-                if (quickUnlock.supported && !wallet.isDemo) _QuickUnlockRow(row: row),
+                if (quickUnlock.supported && AppLock.lock != null) _QuickUnlockRow(row: row),
                 row('Ghillie fee', '0 · never'),
                 row('Price lookups', 'off'),
                 row('Version', 'Ghillie $ghillieMobileVersion${wallet.isDemo ? ' (demo)' : ''}'),
               ]),
             ),
           ),
+          if (AppLock.lock != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  key: const Key('settings-lock'),
+                  onPressed: () {
+                    Navigator.of(context).popUntil((r) => r.isFirst);
+                    AppLock.lock!();
+                  },
+                  child: Text('LOCK WALLET', style: Gt.pixel(20)),
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -111,7 +128,17 @@ class _QuickUnlockRowState extends State<_QuickUnlockRow> {
   @override
   Widget build(BuildContext context) {
     final label = '${quickUnlock.name[0].toUpperCase()}${quickUnlock.name.substring(1)} unlock';
-    if (_set != true) return widget.row(label, 'off');
+    if (_set != true) {
+      if (AppLock.lock == null) return widget.row(label, 'off');
+      return InkWell(
+        key: const Key('settings-quick-on'),
+        onTap: () {
+          Navigator.of(context).popUntil((r) => r.isFirst);
+          AppLock.lock!(turnOnQuickUnlock: true);
+        },
+        child: widget.row(label, 'off · turn on ›'),
+      );
+    }
     return InkWell(
       key: const Key('settings-quick-off'),
       onTap: () async {

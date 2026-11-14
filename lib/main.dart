@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/scope_intro.dart';
+import 'ui/app_lock.dart';
 import 'ui/theme.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -58,6 +59,28 @@ class GhillieApp extends StatefulWidget {
 class _GhillieAppState extends State<GhillieApp> {
   late bool _intro = widget.showIntro;
   late WalletService? _wallet = widget.wallet;
+  bool _turnOnQuick = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.vault != null) AppLock.lock = _lock;
+  }
+
+  @override
+  void dispose() {
+    if (AppLock.lock == _lock) AppLock.lock = null;
+    super.dispose();
+  }
+
+  void _lock({bool turnOnQuickUnlock = false}) {
+    final w = _wallet;
+    setState(() {
+      _wallet = null;
+      _turnOnQuick = turnOnQuickUnlock;
+    });
+    w?.dispose(); // closes and saves the wallet file; the keys leave memory
+  }
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'Ghillie',
@@ -68,7 +91,11 @@ class _GhillieAppState extends State<GhillieApp> {
           child: _intro
               ? ScopeIntro(key: const ValueKey('intro'), onEnter: () => setState(() => _intro = false))
               : _wallet == null
-                  ? SetupScreen(key: const ValueKey('setup'), vault: widget.vault!, onReady: (w) => setState(() => _wallet = w))
+                  ? SetupScreen(
+                      key: ValueKey('setup-$_turnOnQuick'),
+                      vault: widget.vault!,
+                      rememberNext: _turnOnQuick,
+                      onReady: (w) => setState(() => _wallet = w))
                   : HomeScreen(key: const ValueKey('home'), wallet: _wallet!),
         ),
       );

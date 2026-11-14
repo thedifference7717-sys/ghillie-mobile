@@ -17,7 +17,9 @@ const minPasswordLength = 8;
 class SetupScreen extends StatefulWidget {
   final WalletVault vault;
   final void Function(WalletService wallet) onReady;
-  const SetupScreen({super.key, required this.vault, required this.onReady});
+  /// Opened from Settings > "turn on Face ID": the remember box starts ticked and Face ID is not offered.
+  final bool rememberNext;
+  const SetupScreen({super.key, required this.vault, required this.onReady, this.rememberNext = false});
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
@@ -33,13 +35,13 @@ class _SetupScreenState extends State<SetupScreen> {
   List<String> _seed = const [];
   WalletService? _created;
   bool _wroteDown = false, _busy = false;
-  bool _remember = false; // "unlock with Face ID / fingerprint next time" (opt-in)
+  late bool _remember = widget.rememberNext; // "unlock with Face ID / fingerprint next time" (opt-in)
   bool _quickSet = false; // a biometric-protected password is stored
 
   @override
   void initState() {
     super.initState();
-    if (quickUnlock.supported && widget.vault.hasWallet) {
+    if (quickUnlock.supported && widget.vault.hasWallet && !widget.rememberNext) {
       quickUnlock.isSet().then((set) {
         if (!mounted || !set) return;
         setState(() => _quickSet = true);

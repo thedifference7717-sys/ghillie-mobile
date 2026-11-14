@@ -24,6 +24,7 @@ void main() {
   settingsNodeTest();
   sensitiveTest();
   quickUnlockTests();
+  lockTests();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -219,5 +220,49 @@ void quickUnlockTests() {
     await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
     await tapKey(t, 'setup-do-restore');
     expect(await q.isSet(), isFalse);
+  });
+}
+
+void lockTests() {
+  Future<void> openSettings(WidgetTester t) async {
+    await t.tap(find.bySemanticsLabel('Settings'));
+    await t.pumpAndSettle();
+  }
+
+  testWidgets('Settings: lock the wallet, then turn Face ID on with the password', (t) async {
+    await phone(t);
+    final q = MemoryQuickUnlock();
+    quickUnlock = q;
+    addTearDown(() => quickUnlock = NoQuickUnlock());
+    final v = DemoVault();
+    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+    await tapKey(t, 'setup-restore');
+    await t.enterText(find.byKey(const Key('setup-words')), DemoVault.sampleWords.join(' '));
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-do-restore');
+    expect(await q.isSet(), isFalse);
+
+    // lock
+    await openSettings(t);
+    await tapKey(t, 'settings-lock');
+    expect(find.byKey(const Key('setup-unlock')), findsOneWidget);
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await tapKey(t, 'setup-unlock');
+    expect(find.text('1,239.63'), findsOneWidget);
+
+    // turn Face ID on: back to the unlock screen with the box ticked; the password proves it
+    await openSettings(t);
+    expect(find.textContaining('off · turn on'), findsOneWidget);
+    await tapKey(t, 'settings-quick-on');
+    expect(t.widget<CheckboxListTile>(find.byKey(const Key('setup-remember'))).value, isTrue);
+    await t.enterText(find.byKey(const Key('setup-pw')), 'wrong password');
+    await tapKey(t, 'setup-unlock');
+    expect(await q.isSet(), isFalse); // a wrong password is never saved
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await tapKey(t, 'setup-unlock');
+    expect(await q.isSet(), isTrue);
+    await openSettings(t);
+    expect(find.textContaining('on · turn off'), findsOneWidget);
   });
 }
