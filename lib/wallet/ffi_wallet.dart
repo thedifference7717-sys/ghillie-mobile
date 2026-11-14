@@ -5,6 +5,7 @@
 // TODO before release: run prepare/commit on a background isolate so a slow node can't freeze the screen.
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'amount.dart';
 import 'network.dart';
@@ -196,9 +197,32 @@ class FfiVault extends WalletVault {
   final _Lib _l;
   final String path;
   final CamoNetwork network;
-  final String node;
-  FfiVault({required String libPath, required this.path, required this.network, required this.node})
-      : _l = _Lib(DynamicLibrary.open(libPath));
+  @override
+  final bool askNode;
+  String _node;
+
+  /// [libPath] null = the library is linked into the app itself (iOS). The chosen node is remembered in `<path>.node`.
+  FfiVault({String? libPath, required this.path, required this.network, String? node, this.askNode = false})
+      : _l = _Lib(libPath == null ? DynamicLibrary.process() : DynamicLibrary.open(libPath)),
+        _node = node ?? _readNode(path);
+
+  static String _readNode(String path) {
+    try {
+      return File('$path.node').readAsStringSync().trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  String get node => _node;
+  @override
+  set node(String v) {
+    _node = v.trim();
+    try {
+      File('$path.node').writeAsStringSync(_node);
+    } catch (_) {}
+  }
 
   @override
   bool get hasWallet => using((a) => _l.exists(path.toNativeUtf8(allocator: a)) == 1);

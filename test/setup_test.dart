@@ -16,6 +16,7 @@ Future<void> tapKey(WidgetTester t, String k) async {
 }
 
 void main() {
+  nodeTests();
   testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
@@ -75,5 +76,37 @@ void main() {
     await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
     await tapKey(t, 'setup-unlock');
     expect(find.text('1,239.63'), findsOneWidget);
+  });
+}
+
+class _NodeVault extends DemoVault {
+  @override
+  bool get askNode => true;
+}
+
+void nodeTests() {
+  test('node addresses', () {
+    expect(looksLikeNode('3.134.132.214:39741'), isTrue);
+    expect(looksLikeNode('node.camocoin.org:19741'), isTrue);
+    expect(looksLikeNode('[2001:db8::1]:39741'), isTrue);
+    expect(looksLikeNode('3.134.132.214'), isFalse);
+    expect(looksLikeNode('http://x:1'), isFalse);
+    expect(looksLikeNode('x:70000'), isFalse);
+  });
+
+  testWidgets('phone setup asks for a node and refuses a bad one', (t) async {
+    await phone(t);
+    final v = _NodeVault()..node = '';
+    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+    await tapKey(t, 'setup-create');
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-node')), 'not a node');
+    await tapKey(t, 'setup-make');
+    expect(find.textContaining('host:port'), findsWidgets);
+    await t.enterText(find.byKey(const Key('setup-node')), '3.134.132.214:39741');
+    await tapKey(t, 'setup-make');
+    expect(find.text('Your 25 words'), findsOneWidget);
+    expect(v.node, '3.134.132.214:39741');
   });
 }

@@ -4,6 +4,7 @@ import 'screens/home_screen.dart';
 import 'screens/scope_intro.dart';
 import 'ui/theme.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'screens/setup_screen.dart';
 import 'wallet/demo_wallet.dart';
 import 'wallet/vault.dart';
@@ -11,15 +12,29 @@ import 'wallet/ffi_wallet.dart';
 import 'wallet/network.dart';
 import 'wallet/wallet_service.dart';
 
-/// Development: set CAMO_WALLET_LIB (path to libcamo_wallet.so), CAMO_WALLET (wallet file) and CAMO_NODE
-/// (host:port) to run a real wallet (setup / unlock screens first); CAMO_NETWORK = mainnet|stagenet|testnet
-/// (default stagenet). Without them the app opens straight on demo data.
-void main() {
+/// Phones: if the wallet engine is in the app (libcamo_wallet), the real wallet runs on STAGENET for now, with the
+/// wallet file in the app's private folder and a node the user enters. Without the engine: demo data.
+/// Desktop development: set CAMO_WALLET_LIB (path to libcamo_wallet.so), CAMO_WALLET (wallet file) and CAMO_NODE
+/// (host:port); CAMO_NETWORK = mainnet|stagenet|testnet (default stagenet). Without them: demo data.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final env = Platform.environment;
   WalletVault? vault;
   if (env['CAMO_WALLET_LIB'] != null && env['CAMO_WALLET'] != null && env['CAMO_NODE'] != null) {
     final net = CamoNetwork.values.firstWhere((n) => n.name == env['CAMO_NETWORK'], orElse: () => CamoNetwork.stagenet);
     vault = FfiVault(libPath: env['CAMO_WALLET_LIB']!, path: env['CAMO_WALLET']!, network: net, node: env['CAMO_NODE']!);
+  } else if (Platform.isAndroid || Platform.isIOS) {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      vault = FfiVault(
+          libPath: Platform.isAndroid ? 'libcamo_wallet.so' : null,
+          path: '${dir.path}/stagenet-wallet',
+          network: CamoNetwork.stagenet,
+          askNode: true);
+      vault.hasWallet; // fails here if the engine is not in this build
+    } catch (_) {
+      vault = null; // demo build
+    }
   }
   runApp(GhillieApp(vault: vault, wallet: vault == null ? DemoWallet() : null, showIntro: env['CAMO_SKIP_INTRO'] == null));
 }

@@ -26,6 +26,7 @@ class _SetupScreenState extends State<SetupScreen> {
   late _Step _step = widget.vault.hasWallet ? _Step.unlock : _Step.welcome;
   final _pw = TextEditingController(), _pw2 = TextEditingController(), _words = TextEditingController(),
       _height = TextEditingController(text: '0');
+  late final _node = TextEditingController(text: widget.vault.node);
   final _check = <int, TextEditingController>{};
   List<String> _seed = const [];
   WalletService? _created;
@@ -34,7 +35,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   void dispose() {
-    for (final c in [_pw, _pw2, _words, _height, ..._check.values]) {
+    for (final c in [_pw, _pw2, _words, _height, _node, ..._check.values]) {
       c.dispose();
     }
     super.dispose();
@@ -57,6 +58,10 @@ class _SetupScreenState extends State<SetupScreen> {
       _error = null;
     });
     try {
+      if (widget.vault.askNode) {
+        if (!looksLikeNode(_node.text)) throw StateError('Node must look like host:port, e.g. node.example.org:39741.');
+        widget.vault.node = _node.text;
+      }
       await f();
     } on WrongPassword {
       _error = 'Wrong password.';
@@ -65,6 +70,17 @@ class _SetupScreenState extends State<SetupScreen> {
     }
     if (mounted) setState(() => _busy = false);
   }
+
+  Widget _nodeField() => !widget.vault.askNode
+      ? const SizedBox.shrink()
+      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _field(_node, 'CAMO node (host:port)', type: TextInputType.url, key: const Key('setup-node')),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text('The node sees your IP address but never your keys or balance. Your own node is best.',
+                style: Gt.body(13, color: Gc.text3)),
+          ),
+        ]);
 
   Future<void> _create() => _run(() async {
         final p = _passwordProblem();
@@ -150,6 +166,7 @@ class _SetupScreenState extends State<SetupScreen> {
           const SizedBox(height: 40),
           Center(child: Text('GHILLIE', style: Gt.pixel(56))),
           const SizedBox(height: 32),
+          _nodeField(),
           _field(_pw, 'Wallet password', secret: true, key: const Key('setup-pw')),
           _primary('UNLOCK', _unlock, key: const Key('setup-unlock')),
         ];
@@ -160,6 +177,7 @@ class _SetupScreenState extends State<SetupScreen> {
           Text('It locks the wallet on this phone. Your 25 words, not this password, are what recover your coins.',
               style: Gt.body(14, color: Gc.text2)),
           const SizedBox(height: 16),
+          _nodeField(),
           _field(_pw, 'Password (at least $minPasswordLength characters)', secret: true, key: const Key('setup-pw')),
           _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
           _primary('CREATE WALLET', _create, key: const Key('setup-make')),
@@ -214,6 +232,7 @@ class _SetupScreenState extends State<SetupScreen> {
           const SizedBox(height: 16),
           _field(_words, '25 words', lines: 4, key: const Key('setup-words')),
           _field(_height, 'Restore height (block number; 0 scans everything)', type: TextInputType.number, key: const Key('setup-height')),
+          _nodeField(),
           _field(_pw, 'New password for this phone', secret: true, key: const Key('setup-pw')),
           _field(_pw2, 'Same password again', secret: true, key: const Key('setup-pw2')),
           _primary('RESTORE WALLET', _restore, key: const Key('setup-do-restore')),
