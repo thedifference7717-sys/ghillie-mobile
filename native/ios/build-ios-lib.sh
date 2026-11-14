@@ -104,8 +104,9 @@ $NOENV cmake --build "$B" --target wallet_api -j$J > "$WORK/camo-build.log" 2>&1
 
 echo "==> bridge + one static library"
 $CXX $CXXFLAGS -std=c++17 -fvisibility=hidden -I"$SRC/src" -I"$PREFIX/include" -c "$HERE/../camo_wallet_ffi.cpp" -o "$WORK/bridge.o"
+$CC $CFLAGS -c "$HERE/ios_shims.c" -o "$WORK/ios_shims.o"
 LIBS=$(find "$B" -name '*.a' -not -path '*CMakeFiles*' | sort)
-libtool -static -o "$WORK/out/libcamo_wallet.a" "$WORK/bridge.o" $LIBS "$PREFIX"/lib/lib{boost_*,ssl,crypto,sodium,unbound,expat,zmq}.a 2>&1 | grep -v "has no symbols" || true
+libtool -static -o "$WORK/out/libcamo_wallet.a" "$WORK/bridge.o" "$WORK/ios_shims.o" $LIBS "$PREFIX"/lib/lib{boost_*,ssl,crypto,sodium,unbound,expat,zmq}.a 2>&1 | grep -v "has no symbols" || true
 ls -la "$WORK/out/libcamo_wallet.a"
 echo "camo_ symbols: $(nm -gU "$WORK/out/libcamo_wallet.a" 2>/dev/null | grep -c ' T _camo_')"
 
