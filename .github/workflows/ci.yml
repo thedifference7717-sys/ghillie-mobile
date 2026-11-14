@@ -93,6 +93,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
       - run: flutter build ios --debug --no-codesign
+      - name: engine functions present in the app
+        if: steps.engine.outputs.name == 'ghillie-ios-stagenet-unsigned'
+        run: |
+          BIN=build/ios/iphoneos/Runner.app/Runner
+          N=$( (nm -gU "$BIN"; for f in build/ios/iphoneos/Runner.app/*.dylib; do [ -f "$f" ] && nm -gU "$f"; done) 2>/dev/null | grep -c ' T _camo_' || true)
+          echo "camo_ functions in the app: $N"; [ "$N" -ge 33 ]
       - run: cd build/ios/iphoneos && zip -qr ghillie-ios-unsigned.zip Runner.app
       - uses: actions/upload-artifact@v4
         with:
