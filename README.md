@@ -21,15 +21,17 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
   settings. They run on **demo data** (`lib/wallet/demo_wallet.dart`) and show a DEMO badge.
 - `camo:` payment links (build/parse; `monero:` refused), CAMO amounts (exact, 12 decimals, BigInt), address shape
   hints per network (C mainnet, Q stagenet, K/L testnet; Monero addresses get a clear message).
-- 11 tests (`flutter test`), CI builds a demo Android APK and an unsigned iOS app.
+- Wallet setup: create (password of 8+ characters, the 25 words shown once with a warning, then 3 of them checked),
+  restore from the 25 words with a restore height, unlock with the password (wrong password refused).
+- 13 tests (`flutter test`), CI builds a demo Android APK and an unsigned iOS app.
 
 ## Plan
 1. **Wallet bridge** (`native/`): C functions over `wallet2_api.h` (create/restore/open, subaddresses, sync,
    balance, history, prepare/commit send). **Done Nov 14**: `native/test/run-regtest-smoke.sh` links it against CAMO's
    real library and passes on a private regtest chain (sync, 5 CAMO to a new labelled subaddress, fee 0.00123462 like
    desktop Ghillie, txid returned, receiver gets exactly 5.000000000000).
-2. **Linux dev build with the real library**: link the bridge against a camo build and run the app against a
-   private regtest chain (same tests as desktop Ghillie: create, restore from seed, send, receive exactly).
+2. **Linux dev build with the real library**: **done Nov 14** (`lib/wallet/ffi_wallet.dart`, see below): create with
+   a password, wrong password refused, restore from the 25 words gives the same address, send 5 CAMO, receive exactly 5.
 3. **Android**: build camo's wallet library with `contrib/depends` (Android NDK hosts are supported), package
    `libcamo_wallet.so` per ABI (arm64-v8a, x86_64) via the Flutter FFI plugin template.
 4. **iOS**: build the library for `arm64-apple-ios` on a macOS CI runner (camo's CMake has an iOS mode; its
@@ -53,5 +55,5 @@ flutter run -d linux        # phone-sized window
 `lib/wallet/ffi_wallet.dart` runs the screens on CAMO's real wallet library through `native/camo_wallet_ffi`.
 Linux dev build: set `CAMO_WALLET_LIB` (libcamo_wallet.so), `CAMO_WALLET` (wallet file), `CAMO_NODE` (host:port) and
 optionally `CAMO_NETWORK` (default stagenet); without them the app shows demo data.
-Test: `bash native/test/run-regtest-dart.sh <libcamo_wallet.so> <dir with camod>`. Passed Nov 14, 2026: 5 CAMO sent
+With them, the setup / unlock screens come first. Test: `bash native/test/run-regtest-dart.sh <libcamo_wallet.so> <dir with camod>`. Passed Nov 14, 2026: 5 CAMO sent
 to a labelled subaddress, fee 0.00123462, txid returned, receiver exactly 5.
