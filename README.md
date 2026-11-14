@@ -43,9 +43,10 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
    side finds it with `DynamicLibrary.process()`.
 5. **Node**: a phone can't hold the chain, so it uses a remote node in untrusted mode. Needs a public,
    rate-limited `--restricted-rpc` CAMO node (decision pending: the free Google seed has only 1 GB/month egress).
-6. **Security before release**: wallet files encrypted by the library with the user's password; optional
-   Face ID / fingerprint unlock via iOS Keychain / Android Keystore; screenshot blocking on seed screens;
-   seed shown once, with the printed recovery sheet.
+6. **Security before release**: wallet files encrypted by the library with the user's password (done); seed screens
+   protected (done Nov 14: Android FLAG_SECURE, covered in app switchers on all platforms); QR scanning on Send (done
+   Nov 14, on-device decoding); still to do: optional Face ID / fingerprint unlock via iOS Keychain / Android Keystore,
+   the printed recovery sheet.
 7. **Distribution**: test builds are free (Android APK; iOS via Xcode with a free Apple ID on the owner's device,
    7-day signing). Store releases need Apple's Developer Program ($99/yr) and Google Play ($25 once): owner's call.
 
@@ -62,3 +63,13 @@ Linux dev build: set `CAMO_WALLET_LIB` (libcamo_wallet.so), `CAMO_WALLET` (walle
 optionally `CAMO_NETWORK` (default stagenet); without them the app shows demo data.
 With them, the setup / unlock screens come first. Test: `bash native/test/run-regtest-dart.sh <libcamo_wallet.so> <dir with camod>`. Passed Nov 14, 2026: 5 CAMO sent
 to a labelled subaddress, fee 0.00123462, txid returned, receiver exactly 5.
+
+## Tested on iPhone (simulator), Nov 14, 2026
+On the owner's Intel iMac (Xcode 26.5, iOS 26.5 simulator, x86_64 engine from `ios-lib.yml`): created a wallet with the
+real library, synced through the public stagenet phone node `3.134.132.214:39749`, received 5 CAMO from a miner, then
+sent 1 CAMO back (fee 0.00086355, Ghillie fee 0). Local setup: engines in `ios/Engine/` (device) and `ios/Engine/sim/`
+(simulator), linked by a git-ignored `ios/Flutter/Engine.xcconfig`:
+```
+OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -force_load "$(PROJECT_DIR)/Engine/libcamo_wallet.a" -lc++ -liconv -lz -framework Security -framework SystemConfiguration
+OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) -force_load "$(PROJECT_DIR)/Engine/sim/libcamo_wallet.a" -lc++ -liconv -lz -framework Security -framework SystemConfiguration
+```
