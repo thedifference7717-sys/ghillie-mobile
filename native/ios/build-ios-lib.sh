@@ -13,7 +13,7 @@ export CC="$(xcrun --sdk iphoneos -f clang)" CXX="$(xcrun --sdk iphoneos -f clan
 export CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN -O2"
 export CXXFLAGS="$CFLAGS" LDFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=$MIN"
 # a host triplet different from the build Mac (also arm64) makes configure cross-compile instead of running iPhone binaries
-HOSTARG="--host=arm-apple-darwin --build=$(uname -m)-apple-darwin"
+HOSTARG="--host=arm-apple-darwin --build=aarch64-apple-darwin"
 
 fetch() { # url sha256 -> extracted dir name on stdout
   local f="$WORK/dl/$(basename "$1")"
