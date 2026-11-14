@@ -241,9 +241,10 @@ class FfiVault extends WalletVault {
   String _node;
 
   /// [libPath] null = the library is linked into the app itself (iOS). The chosen node is remembered in `<path>.node`.
-  FfiVault({String? libPath, required this.path, required this.network, String? node, this.askNode = false})
+  /// [defaultNode] is suggested in the node field until the user picks one.
+  FfiVault({String? libPath, required this.path, required this.network, String? node, String defaultNode = '', this.askNode = false})
       : _l = _Lib(libPath),
-        _node = node ?? _readNode(path);
+        _node = node ?? (_readNode(path).isEmpty ? defaultNode : _readNode(path));
 
   static String _readNode(String path) {
     try {

@@ -16,6 +16,9 @@ import 'wallet/wallet_service.dart';
 /// wallet file in the app's private folder and a node the user enters. Without the engine: demo data.
 /// Desktop development: set CAMO_WALLET_LIB (path to libcamo_wallet.so), CAMO_WALLET (wallet file) and CAMO_NODE
 /// (host:port); CAMO_NETWORK = mainnet|stagenet|testnet (default stagenet). Without them: demo data.
+/// The project's public read-only stagenet node for phones (AWS seed, `deploy-seed-node.sh --public-rpc`, Nov 14).
+const stagenetPhoneNode = '3.134.132.214:39749';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final env = Platform.environment;
@@ -30,6 +33,7 @@ Future<void> main() async {
           libPath: Platform.isAndroid ? 'libcamo_wallet.so' : null,
           path: '${dir.path}/stagenet-wallet',
           network: CamoNetwork.stagenet,
+          defaultNode: stagenetPhoneNode,
           askNode: true);
       vault.hasWallet; // fails here if the engine is not in this build
     } catch (_) {
