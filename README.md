@@ -25,7 +25,9 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
 
 ## Plan
 1. **Wallet bridge** (`native/`): C functions over `wallet2_api.h` (create/restore/open, subaddresses, sync,
-   balance, history, prepare/commit send). Compiles against the camo headers (CI job `native-bridge`).
+   balance, history, prepare/commit send). **Done Nov 14**: `native/test/run-regtest-smoke.sh` links it against CAMO's
+   real library and passes on a private regtest chain (sync, 5 CAMO to a new labelled subaddress, fee 0.00123462 like
+   desktop Ghillie, txid returned, receiver gets exactly 5.000000000000).
 2. **Linux dev build with the real library**: link the bridge against a camo build and run the app against a
    private regtest chain (same tests as desktop Ghillie: create, restore from seed, send, receive exactly).
 3. **Android**: build camo's wallet library with `contrib/depends` (Android NDK hosts are supported), package

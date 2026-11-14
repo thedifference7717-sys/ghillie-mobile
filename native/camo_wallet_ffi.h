@@ -58,7 +58,7 @@ int camo_wallet_history_count(camo_wallet *w);
 const char *camo_wallet_history_row(camo_wallet *w, int i);
 
 /* send: prepare builds the transaction (nothing leaves the phone), commit broadcasts it.
-   priority: 1 low, 2 normal, 3 fast. sweep_all != 0 sends the whole unlocked balance. */
+   priority: 1 low, 2 normal (library's automatic choice), 3 fast. sweep_all != 0 sends the whole unlocked balance. */
 int camo_wallet_prepare(camo_wallet *w, const char *address, uint64_t amount, int sweep_all, int priority);
 uint64_t camo_wallet_prepared_fee(camo_wallet *w);
 uint64_t camo_wallet_prepared_amount(camo_wallet *w);

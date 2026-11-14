@@ -93,7 +93,11 @@ int camo_wallet_start_refresh(camo_wallet *cw) {
   cw->w->startRefresh();
   return 1;
 }
-int camo_wallet_refresh_now(camo_wallet *cw) { return cw->w->refresh() ? 1 : 0; }
+int camo_wallet_refresh_now(camo_wallet *cw) {
+  if (!cw->w->refresh()) return 0;
+  cw->w->store(""); // keep sync progress even if the app is killed right after
+  return 1;
+}
 uint64_t camo_wallet_height(camo_wallet *cw) { return cw->w->blockChainHeight(); }
 uint64_t camo_wallet_daemon_height(camo_wallet *cw) { return cw->w->daemonBlockChainHeight(); }
 int camo_wallet_connected(camo_wallet *cw) { return cw->w->connected() == Wallet::ConnectionStatus_Connected ? 1 : 0; }
@@ -119,9 +123,10 @@ const char *camo_wallet_history_row(camo_wallet *cw, int i) {
 
 int camo_wallet_prepare(camo_wallet *cw, const char *address, uint64_t amount, int sweep_all, int priority) {
   camo_wallet_discard(cw);
-  const auto prio = priority == 3 ? PendingTransaction::Priority_High
+  // normal = the library's automatic choice (lowest fee unless the network is busy), fast = medium (5x), low = 1x
+  const auto prio = priority == 3 ? PendingTransaction::Priority_Medium
                   : priority == 1 ? PendingTransaction::Priority_Low
-                                  : PendingTransaction::Priority_Medium;
+                                  : PendingTransaction::Priority_Default;
   // mixin 0 = the library's default ring size (16, enforced by consensus)
   cw->pending = cw->w->createTransaction(address, "", sweep_all ? optional<uint64_t>() : optional<uint64_t>(amount), 0, prio);
   if (!cw->pending || cw->pending->status() != PendingTransaction::Status_Ok) {
@@ -135,12 +140,12 @@ uint64_t camo_wallet_prepared_fee(camo_wallet *cw) { return cw->pending ? cw->pe
 uint64_t camo_wallet_prepared_amount(camo_wallet *cw) { return cw->pending ? cw->pending->amount() : 0; }
 const char *camo_wallet_commit(camo_wallet *cw) {
   if (!cw->pending) return nullptr;
+  std::string ids; // read before commit: the library empties the pending list as it broadcasts
+  for (const auto &id : cw->pending->txid()) ids += (ids.empty() ? "" : ",") + id;
   if (!cw->pending->commit()) {
     g_last_error = cw->pending->errorString();
     return nullptr;
   }
-  std::string ids;
-  for (const auto &id : cw->pending->txid()) ids += (ids.empty() ? "" : ",") + id;
   camo_wallet_discard(cw);
   cw->w->store("");
   return ret(cw, ids);
