@@ -84,6 +84,11 @@ if ! done_mark boost; then
 fi
 
 echo "==> CAMO wallet library"
+# Build-only patches for iOS, applied to this build's copy of camo (never committed to camo): miner.cpp assumes every
+# Apple device has macOS power-source APIs. Phones never mine; on iOS the battery check reports "unknown".
+for P in "$HERE"/camo-ios-*.patch; do
+  git -C "$SRC" apply --reverse --check "$P" 2>/dev/null || git -C "$SRC" apply "$P"
+done
 B=$WORK/build/camo; mkdir -p "$B"
 # CMake's iOS mode sets the compiler; clear the configure-style variables so the translations helper that camo
 # builds and RUNS during the build is compiled for this Mac, not for iPhone

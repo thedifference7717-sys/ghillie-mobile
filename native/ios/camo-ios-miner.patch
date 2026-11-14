@@ -1,0 +1,27 @@
+diff --git a/src/cryptonote_basic/miner.cpp b/src/cryptonote_basic/miner.cpp
+index fd13ff74d..c7af33f7c 100644
+--- a/src/cryptonote_basic/miner.cpp
++++ b/src/cryptonote_basic/miner.cpp
+@@ -46,10 +46,13 @@
+ #include <boost/filesystem.hpp>
+ 
+ #ifdef __APPLE__
++  #include <TargetConditionals.h>
+   #include <sys/times.h>
+   #include <IOKit/IOKitLib.h>
++  #if !TARGET_OS_IPHONE
+   #include <IOKit/ps/IOPSKeys.h>
+   #include <IOKit/ps/IOPowerSources.h>
++  #endif
+   #include <mach/mach_host.h>
+   #include <AvailabilityMacros.h>
+   #include <TargetConditionals.h>
+@@ -981,7 +984,7 @@ namespace cryptonote
+ 
+     #elif defined(__APPLE__) 
+       
+-      #if TARGET_OS_MAC && (!defined(MAC_OS_X_VERSION_MIN_REQUIRED) || MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)
++      #if TARGET_OS_MAC && !TARGET_OS_IPHONE && (!defined(MAC_OS_X_VERSION_MIN_REQUIRED) || MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)
+         return boost::logic::tribool(IOPSGetTimeRemainingEstimate() != kIOPSTimeRemainingUnlimited);
+       #else
+         // iOS or OSX <10.7
