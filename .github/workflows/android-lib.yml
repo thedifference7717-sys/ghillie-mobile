@@ -1,0 +1,59 @@
+# Builds CAMO's wallet library for Android (arm64) with contrib/depends and links native/camo_wallet_ffi into
+# libcamo_wallet.so, the engine the app loads on Android phones. Artifact: android-libcamo_wallet-arm64-v8a.
+name: android wallet library
+on:
+  workflow_dispatch:
+  push:
+    paths: ['native/**', '.github/workflows/android-lib.yml']
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    container:
+      image: ubuntu:20.04
+      env:
+        DEBIAN_FRONTEND: noninteractive
+    env:
+      HOST: aarch64-linux-android
+    steps:
+      - name: tools
+        run: apt-get update && apt-get -y install build-essential libtool cmake autotools-dev automake pkg-config python3 python gperf bsdmainutils curl git ca-certificates unzip ccache file
+      - run: git config --global --add safe.directory '*'
+      - uses: actions/checkout@v5
+      - name: get camo
+        run: git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/thedifference7717-sys/camo.git camo
+      - name: restore depends cache
+        uses: actions/cache@v5
+        with:
+          path: camo/contrib/depends/built
+          key: depends-${{ env.HOST }}-${{ hashFiles('camo/contrib/depends/packages/*') }}
+      - name: depends
+        run: make -C camo/contrib/depends HOST=$HOST -j4
+      - name: wallet library
+        run: |
+          mkdir -p camo/build/android && cd camo/build/android
+          cmake -DCMAKE_TOOLCHAIN_FILE=$PWD/../../contrib/depends/$HOST/share/toolchain.cmake \
+            -DBUILD_GUI_DEPS=ON -DSTATIC=ON -DBUILD_TESTS=OFF -DUSE_DEVICE_TREZOR=OFF -DCMAKE_BUILD_TYPE=Release ../..
+          make -j4 wallet_api
+      - name: link libcamo_wallet.so
+        run: |
+          P=$PWD/camo/contrib/depends/$HOST
+          export PATH=$P/native/bin:$PATH
+          CXX=aarch64-linux-android-clang++
+          $CXX -std=c++14 -O2 -fPIC -fvisibility=hidden -I camo/src -c native/camo_wallet_ffi.cpp -o bridge.o \
+            -I$P/include
+          LIBS=$(find camo/build/android -name '*.a' -not -path '*CMakeFiles*' | tr '\n' ' ')
+          DEPS=$(ls $P/lib/*.a | tr '\n' ' ')
+          $CXX -shared -o libcamo_wallet.so bridge.o -Wl,--start-group $LIBS $DEPS -Wl,--end-group \
+            -static-libstdc++ -Wl,--exclude-libs,ALL -Wl,--gc-sections -llog -landroid -lz
+          aarch64-linux-android-strip libcamo_wallet.so
+          file libcamo_wallet.so; ls -la libcamo_wallet.so
+          echo "exported camo_ symbols: $(aarch64-linux-android-nm -D --defined-only libcamo_wallet.so | grep -c ' T camo_')"
+          aarch64-linux-android-readelf -d libcamo_wallet.so | grep NEEDED
+      - uses: actions/upload-artifact@v5
+        with:
+          name: android-libcamo_wallet-arm64-v8a
+          path: libcamo_wallet.so
