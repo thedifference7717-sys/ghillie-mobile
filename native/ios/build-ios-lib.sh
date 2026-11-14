@@ -91,7 +91,8 @@ cmake -S "$SRC" -B "$B" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 
   -DBoost_USE_STATIC_LIBS=ON -DBOOST_ROOT="$PREFIX" -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$PREFIX" \
   -DSTATIC=ON -DBUILD_GUI_DEPS=ON -DBUILD_TESTS=OFF -DUSE_DEVICE_TREZOR=OFF -DUSE_READLINE=OFF -DBUILD_DOCUMENTATION=OFF \
   -DARCH=armv8-a -DCMAKE_BUILD_TYPE=Release
-cmake --build "$B" --target wallet_api -j$J
+cmake --build "$B" --target wallet_api -j$J > "$WORK/camo-build.log" 2>&1 || {
+  echo "camo build failed; errors:"; grep -E -B2 -A6 "error:|Error [0-9]|undefined|fatal" "$WORK/camo-build.log" | grep -v "warning:" | head -120; exit 1; }
 
 echo "==> bridge + one static library"
 $CXX $CXXFLAGS -std=c++17 -fvisibility=hidden -I"$SRC/src" -I"$PREFIX/include" -c "$HERE/../camo_wallet_ffi.cpp" -o "$WORK/bridge.o"
