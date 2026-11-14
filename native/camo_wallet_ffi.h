@@ -15,6 +15,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if defined(__GNUC__)
+#pragma GCC visibility push(default) /* only these functions are exported from libcamo_wallet */
+#endif
 
 typedef struct camo_wallet camo_wallet;
 
@@ -65,6 +68,9 @@ uint64_t camo_wallet_prepared_amount(camo_wallet *w);
 const char *camo_wallet_commit(camo_wallet *w); /* returns txid(s), NULL on error */
 void camo_wallet_discard(camo_wallet *w);
 
+#if defined(__GNUC__)
+#pragma GCC visibility pop
+#endif
 #ifdef __cplusplus
 }
 #endif

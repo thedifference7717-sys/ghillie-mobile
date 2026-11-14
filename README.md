@@ -48,3 +48,10 @@ flutter pub get
 flutter test
 flutter run -d linux        # phone-sized window
 ```
+
+## Real wallet (development)
+`lib/wallet/ffi_wallet.dart` runs the screens on CAMO's real wallet library through `native/camo_wallet_ffi`.
+Linux dev build: set `CAMO_WALLET_LIB` (libcamo_wallet.so), `CAMO_WALLET` (wallet file), `CAMO_NODE` (host:port) and
+optionally `CAMO_NETWORK` (default stagenet); without them the app shows demo data.
+Test: `bash native/test/run-regtest-dart.sh <libcamo_wallet.so> <dir with camod>`. Passed Nov 14, 2026: 5 CAMO sent
+to a labelled subaddress, fee 0.00123462, txid returned, receiver exactly 5.
