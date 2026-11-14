@@ -32,10 +32,15 @@ Planned release: Q1 2027, after CAMO mainnet (Dec 15, 2026). Desktop Ghillie liv
    desktop Ghillie, txid returned, receiver gets exactly 5.000000000000).
 2. **Linux dev build with the real library**: **done Nov 14** (`lib/wallet/ffi_wallet.dart`, see below): create with
    a password, wrong password refused, restore from the 25 words gives the same address, send 5 CAMO, receive exactly 5.
-3. **Android**: build camo's wallet library with `contrib/depends` (Android NDK hosts are supported), package
-   `libcamo_wallet.so` per ABI (arm64-v8a, x86_64) via the Flutter FFI plugin template.
-4. **iOS**: build the library for `arm64-apple-ios` on a macOS CI runner (camo's CMake has an iOS mode; its
-   dependencies need iOS builds), ship as an xcframework. Hardest step, so it starts early.
+3. **Android**: **engine done Nov 14**: `android-lib.yml` builds camo's wallet library with `contrib/depends`
+   (NDK r17b) and links the bridge into `libcamo_wallet.so` (arm64-v8a, 17.7 MB, exactly the 33 `camo_*` functions,
+   only Android system libraries needed). CI's APK bundles it (`ghillie-android-stagenet`); without it: demo APK.
+4. **iOS**: **engine done Nov 14**: `ios-lib.yml` runs `native/ios/build-ios-lib.sh` on a macOS runner: OpenSSL,
+   libsodium, expat, unbound, ZeroMQ, Boost 1.84 from pinned, checksummed sources, then camo's wallet library, all in
+   one static `libcamo_wallet.a` (arm64, iOS 15+); an iPhone test executable links against it. Build-only patch:
+   `camo-ios-miner.patch` (miner.cpp's macOS battery API; phones never mine), and `ios_shims.c` (`__clear_cache`
+   for RandomX's JIT, never run by the wallet). CI's iOS app links it via `ios/Flutter/Engine.xcconfig` and the Dart
+   side finds it with `DynamicLibrary.process()`.
 5. **Node**: a phone can't hold the chain, so it uses a remote node in untrusted mode. Needs a public,
    rate-limited `--restricted-rpc` CAMO node (decision pending: the free Google seed has only 1 GB/month egress).
 6. **Security before release**: wallet files encrypted by the library with the user's password; optional
