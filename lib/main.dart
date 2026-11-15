@@ -79,7 +79,10 @@ class _GhillieAppState extends State<GhillieApp> {
     setState(() {
       _wallet = null;
       _turnOnQuick = turnOnQuickUnlock;
-      _lockedByUser = true;
+      // Lock goes back to the opening screen (the scope), like a fresh start; after it, Face ID is offered as at app
+      // start. Turning Face ID on from Settings skips the scope and goes straight to the password.
+      _intro = widget.showIntro && !turnOnQuickUnlock;
+      _lockedByUser = !_intro;
     });
     w?.dispose(); // closes and saves the wallet file; the keys leave memory
   }

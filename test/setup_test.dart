@@ -26,43 +26,66 @@ void main() {
   quickUnlockTests();
   lockTests();
   lockWithQuickTest();
-  testWidgets('create: password rules, words shown, 3 words checked, then home', (t) async {
-    await phone(t);
-    await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
-    await tapKey(t, 'setup-create');
-    await t.enterText(find.byKey(const Key('setup-pw')), 'short');
-    await t.enterText(find.byKey(const Key('setup-pw2')), 'short');
-    await tapKey(t, 'setup-make');
-    expect(find.textContaining('at least 8'), findsWidgets);
+  lockToIntroTest();
+  testWidgets(
+    'create: password rules, words shown, 3 words checked, then home',
+    (t) async {
+      await phone(t);
+      await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
+      await tapKey(t, 'setup-create');
+      await t.enterText(find.byKey(const Key('setup-pw')), 'short');
+      await t.enterText(find.byKey(const Key('setup-pw2')), 'short');
+      await tapKey(t, 'setup-make');
+      expect(find.textContaining('at least 8'), findsWidgets);
 
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
-    await tapKey(t, 'setup-make');
-    expect(find.text('Your 25 words'), findsOneWidget);
-    expect(find.textContaining('Anyone with these words'), findsOneWidget);
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+      await tapKey(t, 'setup-make');
+      expect(find.text('Your 25 words'), findsOneWidget);
+      expect(find.textContaining('Anyone with these words'), findsOneWidget);
 
-    // continue is disabled until the user says they wrote the words down
-    expect(t.widget<FilledButton>(find.byKey(const Key('setup-continue'))).onPressed, isNull);
-    await tapKey(t, 'setup-wrote');
-    await tapKey(t, 'setup-continue');
+      // continue is disabled until the user says they wrote the words down
+      expect(
+        t
+            .widget<FilledButton>(find.byKey(const Key('setup-continue')))
+            .onPressed,
+        isNull,
+      );
+      await tapKey(t, 'setup-wrote');
+      await tapKey(t, 'setup-continue');
 
-    final fields = find.byWidgetPredicate((w) => w.key is ValueKey<String> && (w.key as ValueKey<String>).value.startsWith('setup-check-'));
-    expect(fields, findsNWidgets(3));
-    for (final e in fields.evaluate().toList()) {
-      final i = int.parse((e.widget.key as ValueKey<String>).value.split('-').last);
-      await t.enterText(find.byKey(e.widget.key!), i == 0 ? 'wrong' : DemoVault.sampleWords[i]);
-    }
-    await tapKey(t, 'setup-confirm');
-    // word #1 may not have been asked; only expect an error if it was
-    if (find.byKey(const Key('setup-check-0')).evaluate().isNotEmpty) {
-      expect(find.byKey(const Key('setup-error')), findsOneWidget);
-      await t.enterText(find.byKey(const Key('setup-check-0')), DemoVault.sampleWords[0]);
+      final fields = find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('setup-check-'),
+      );
+      expect(fields, findsNWidgets(3));
+      for (final e in fields.evaluate().toList()) {
+        final i = int.parse(
+          (e.widget.key as ValueKey<String>).value.split('-').last,
+        );
+        await t.enterText(
+          find.byKey(e.widget.key!),
+          i == 0 ? 'wrong' : DemoVault.sampleWords[i],
+        );
+      }
       await tapKey(t, 'setup-confirm');
-    }
-    expect(find.text('1,239.63'), findsOneWidget);
-  });
+      // word #1 may not have been asked; only expect an error if it was
+      if (find.byKey(const Key('setup-check-0')).evaluate().isNotEmpty) {
+        expect(find.byKey(const Key('setup-error')), findsOneWidget);
+        await t.enterText(
+          find.byKey(const Key('setup-check-0')),
+          DemoVault.sampleWords[0],
+        );
+        await tapKey(t, 'setup-confirm');
+      }
+      expect(find.text('1,239.63'), findsOneWidget);
+    },
+  );
 
-  testWidgets('restore needs 25 words; unlock rejects a wrong password', (t) async {
+  testWidgets('restore needs 25 words; unlock rejects a wrong password', (
+    t,
+  ) async {
     await phone(t);
     final v = DemoVault();
     await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
@@ -72,12 +95,17 @@ void main() {
     await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
     await tapKey(t, 'setup-do-restore');
     expect(find.textContaining('you entered 3'), findsOneWidget);
-    await t.enterText(find.byKey(const Key('setup-words')), DemoVault.sampleWords.join(' '));
+    await t.enterText(
+      find.byKey(const Key('setup-words')),
+      DemoVault.sampleWords.join(' '),
+    );
     await tapKey(t, 'setup-do-restore');
     expect(find.text('1,239.63'), findsOneWidget);
 
     // next start: unlock screen
-    await t.pumpWidget(GhillieApp(key: UniqueKey(), vault: v, showIntro: false));
+    await t.pumpWidget(
+      GhillieApp(key: UniqueKey(), vault: v, showIntro: false),
+    );
     await t.pumpAndSettle();
     await t.enterText(find.byKey(const Key('setup-pw')), 'nope nope');
     await tapKey(t, 'setup-unlock');
@@ -113,7 +141,10 @@ void nodeTests() {
     await t.enterText(find.byKey(const Key('setup-node')), 'not a node');
     await tapKey(t, 'setup-make');
     expect(find.textContaining('host:port'), findsWidgets);
-    await t.enterText(find.byKey(const Key('setup-node')), '3.134.132.214:39741');
+    await t.enterText(
+      find.byKey(const Key('setup-node')),
+      '3.134.132.214:39741',
+    );
     await tapKey(t, 'setup-make');
     expect(find.text('Your 25 words'), findsOneWidget);
     expect(v.node, '3.134.132.214:39741');
@@ -125,7 +156,12 @@ class _NodeWallet extends DemoWallet {
   @override
   bool get canChangeNode => true;
   @override
-  SyncState get sync => SyncState(connected: true, walletHeight: 10, chainHeight: 10, nodeLabel: node);
+  SyncState get sync => SyncState(
+    connected: true,
+    walletHeight: 10,
+    chainHeight: 10,
+    nodeLabel: node,
+  );
   @override
   Future<void> changeNode(String n) async {
     node = n;
@@ -144,7 +180,10 @@ void settingsNodeTest() {
     await t.tap(find.byKey(const Key('node-save')));
     await t.pumpAndSettle();
     expect(find.textContaining('Use host:port'), findsOneWidget);
-    await t.enterText(find.byKey(const Key('node-field')), '3.134.132.214:39749');
+    await t.enterText(
+      find.byKey(const Key('node-field')),
+      '3.134.132.214:39749',
+    );
     await t.tap(find.byKey(const Key('node-save')));
     await t.pumpAndSettle();
     expect(w.node, '3.134.132.214:39749');
@@ -153,7 +192,9 @@ void settingsNodeTest() {
 }
 
 void sensitiveTest() {
-  testWidgets('the 25 words are covered when the app goes to the background', (t) async {
+  testWidgets('the 25 words are covered when the app goes to the background', (
+    t,
+  ) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
     await tapKey(t, 'setup-create');
@@ -171,42 +212,61 @@ void sensitiveTest() {
 }
 
 void quickUnlockTests() {
-  testWidgets('Face ID: opt in when creating, then unlock without typing; refusal falls back to the password', (t) async {
-    await phone(t);
-    final q = MemoryQuickUnlock();
-    quickUnlock = q;
-    addTearDown(() => quickUnlock = NoQuickUnlock());
-    final v = DemoVault();
-    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
-    await tapKey(t, 'setup-create');
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
-    await tapKey(t, 'setup-remember');
-    await tapKey(t, 'setup-make');
-    await tapKey(t, 'setup-wrote');
-    await tapKey(t, 'setup-continue');
-    for (final e in find.byWidgetPredicate((w) => w.key is ValueKey<String> && (w.key as ValueKey<String>).value.startsWith('setup-check-')).evaluate().toList()) {
-      final i = int.parse((e.widget.key as ValueKey<String>).value.split('-').last);
-      await t.enterText(find.byKey(e.widget.key!), DemoVault.sampleWords[i]);
-    }
-    await tapKey(t, 'setup-confirm');
-    expect(await q.isSet(), isTrue);
+  testWidgets(
+    'Face ID: opt in when creating, then unlock without typing; refusal falls back to the password',
+    (t) async {
+      await phone(t);
+      final q = MemoryQuickUnlock();
+      quickUnlock = q;
+      addTearDown(() => quickUnlock = NoQuickUnlock());
+      final v = DemoVault();
+      await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+      await tapKey(t, 'setup-create');
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+      await tapKey(t, 'setup-remember');
+      await tapKey(t, 'setup-make');
+      await tapKey(t, 'setup-wrote');
+      await tapKey(t, 'setup-continue');
+      for (final e
+          in find
+              .byWidgetPredicate(
+                (w) =>
+                    w.key is ValueKey<String> &&
+                    (w.key as ValueKey<String>).value.startsWith(
+                      'setup-check-',
+                    ),
+              )
+              .evaluate()
+              .toList()) {
+        final i = int.parse(
+          (e.widget.key as ValueKey<String>).value.split('-').last,
+        );
+        await t.enterText(find.byKey(e.widget.key!), DemoVault.sampleWords[i]);
+      }
+      await tapKey(t, 'setup-confirm');
+      expect(await q.isSet(), isTrue);
 
-    // next start: Face ID is offered at once and opens the wallet
-    await t.pumpWidget(GhillieApp(key: UniqueKey(), vault: v, showIntro: false));
-    await t.pumpAndSettle();
-    expect(find.text('1,239.63'), findsOneWidget);
+      // next start: Face ID is offered at once and opens the wallet
+      await t.pumpWidget(
+        GhillieApp(key: UniqueKey(), vault: v, showIntro: false),
+      );
+      await t.pumpAndSettle();
+      expect(find.text('1,239.63'), findsOneWidget);
 
-    // Face ID refused: stays on the unlock screen with a message; the password still works
-    q.approve = false;
-    await t.pumpWidget(GhillieApp(key: UniqueKey(), vault: v, showIntro: false));
-    await t.pumpAndSettle();
-    expect(find.textContaining('not confirmed'), findsOneWidget);
-    expect(find.byKey(const Key('setup-quick')), findsOneWidget);
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await tapKey(t, 'setup-unlock');
-    expect(find.text('1,239.63'), findsOneWidget);
-  });
+      // Face ID refused: stays on the unlock screen with a message; the password still works
+      q.approve = false;
+      await t.pumpWidget(
+        GhillieApp(key: UniqueKey(), vault: v, showIntro: false),
+      );
+      await t.pumpAndSettle();
+      expect(find.textContaining('not confirmed'), findsOneWidget);
+      expect(find.byKey(const Key('setup-quick')), findsOneWidget);
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await tapKey(t, 'setup-unlock');
+      expect(find.text('1,239.63'), findsOneWidget);
+    },
+  );
 
   testWidgets('Face ID is off unless chosen', (t) async {
     await phone(t);
@@ -216,7 +276,10 @@ void quickUnlockTests() {
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
     await tapKey(t, 'setup-restore');
     expect(find.byKey(const Key('setup-remember')), findsOneWidget);
-    await t.enterText(find.byKey(const Key('setup-words')), DemoVault.sampleWords.join(' '));
+    await t.enterText(
+      find.byKey(const Key('setup-words')),
+      DemoVault.sampleWords.join(' '),
+    );
     await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
     await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
     await tapKey(t, 'setup-do-restore');
@@ -230,46 +293,59 @@ void lockTests() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('Settings: lock the wallet, then turn Face ID on with the password', (t) async {
-    await phone(t);
-    final q = MemoryQuickUnlock();
-    quickUnlock = q;
-    addTearDown(() => quickUnlock = NoQuickUnlock());
-    final v = DemoVault();
-    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
-    await tapKey(t, 'setup-restore');
-    await t.enterText(find.byKey(const Key('setup-words')), DemoVault.sampleWords.join(' '));
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
-    await tapKey(t, 'setup-do-restore');
-    expect(await q.isSet(), isFalse);
+  testWidgets(
+    'Settings: lock the wallet, then turn Face ID on with the password',
+    (t) async {
+      await phone(t);
+      final q = MemoryQuickUnlock();
+      quickUnlock = q;
+      addTearDown(() => quickUnlock = NoQuickUnlock());
+      final v = DemoVault();
+      await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+      await tapKey(t, 'setup-restore');
+      await t.enterText(
+        find.byKey(const Key('setup-words')),
+        DemoVault.sampleWords.join(' '),
+      );
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+      await tapKey(t, 'setup-do-restore');
+      expect(await q.isSet(), isFalse);
 
-    // lock
-    await openSettings(t);
-    await tapKey(t, 'settings-lock');
-    expect(find.byKey(const Key('setup-unlock')), findsOneWidget);
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await tapKey(t, 'setup-unlock');
-    expect(find.text('1,239.63'), findsOneWidget);
+      // lock
+      await openSettings(t);
+      await tapKey(t, 'settings-lock');
+      expect(find.byKey(const Key('setup-unlock')), findsOneWidget);
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await tapKey(t, 'setup-unlock');
+      expect(find.text('1,239.63'), findsOneWidget);
 
-    // turn Face ID on: back to the unlock screen with the box ticked; the password proves it
-    await openSettings(t);
-    expect(find.textContaining('off · turn on'), findsOneWidget);
-    await tapKey(t, 'settings-quick-on');
-    expect(t.widget<CheckboxListTile>(find.byKey(const Key('setup-remember'))).value, isTrue);
-    await t.enterText(find.byKey(const Key('setup-pw')), 'wrong password');
-    await tapKey(t, 'setup-unlock');
-    expect(await q.isSet(), isFalse); // a wrong password is never saved
-    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
-    await tapKey(t, 'setup-unlock');
-    expect(await q.isSet(), isTrue);
-    await openSettings(t);
-    expect(find.textContaining('on · turn off'), findsOneWidget);
-  });
+      // turn Face ID on: back to the unlock screen with the box ticked; the password proves it
+      await openSettings(t);
+      expect(find.textContaining('off · turn on'), findsOneWidget);
+      await tapKey(t, 'settings-quick-on');
+      expect(
+        t
+            .widget<CheckboxListTile>(find.byKey(const Key('setup-remember')))
+            .value,
+        isTrue,
+      );
+      await t.enterText(find.byKey(const Key('setup-pw')), 'wrong password');
+      await tapKey(t, 'setup-unlock');
+      expect(await q.isSet(), isFalse); // a wrong password is never saved
+      await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+      await tapKey(t, 'setup-unlock');
+      expect(await q.isSet(), isTrue);
+      await openSettings(t);
+      expect(find.textContaining('on · turn off'), findsOneWidget);
+    },
+  );
 }
 
 void lockWithQuickTest() {
-  testWidgets('with Face ID on, Lock really locks: Face ID waits for a tap', (t) async {
+  testWidgets('with Face ID on, Lock really locks: Face ID waits for a tap', (
+    t,
+  ) async {
     await phone(t);
     final q = MemoryQuickUnlock();
     quickUnlock = q;
@@ -279,13 +355,51 @@ void lockWithQuickTest() {
     await v.restore(DemoVault.sampleWords, 'correct horse', 0);
     await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
     await t.pumpAndSettle();
-    expect(find.text('1,239.63'), findsOneWidget); // app start: Face ID opened it
+    expect(
+      find.text('1,239.63'),
+      findsOneWidget,
+    ); // app start: Face ID opened it
     await t.tap(find.bySemanticsLabel('Settings'));
     await t.pumpAndSettle();
     await tapKey(t, 'settings-lock');
-    expect(find.byKey(const Key('setup-quick')), findsOneWidget); // locked, waiting
+    expect(
+      find.byKey(const Key('setup-quick')),
+      findsOneWidget,
+    ); // locked, waiting
     expect(find.text('1,239.63'), findsNothing);
     await tapKey(t, 'setup-quick');
     expect(find.text('1,239.63'), findsOneWidget);
+  });
+}
+
+void lockToIntroTest() {
+  testWidgets('Lock goes back to the opening screen', (t) async {
+    await phone(t);
+    final v = DemoVault();
+    await v.restore(DemoVault.sampleWords, 'correct horse', 0);
+    await t.pumpWidget(GhillieApp(vault: v)); // with the opening screen
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.tap(find.text('Skip'));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.tap(find.byKey(const Key('setup-unlock')));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.tap(find.bySemanticsLabel('Settings'));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.ensureVisible(find.byKey(const Key('settings-lock')));
+    await t.tap(find.byKey(const Key('settings-lock')));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Skip'), findsOneWidget); // the scope screen
+    expect(find.byKey(const Key('setup-pw')), findsNothing);
   });
 }
