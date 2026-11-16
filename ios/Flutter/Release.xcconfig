@@ -1,6 +1,7 @@
 #include "Generated.xcconfig"
 #include? "Engine.xcconfig"
-// The wallet engine is linked statically and found at run time by name (DynamicLibrary.process()).
-// Release builds strip all symbols by default, which hides those names and leaves the app in demo mode;
-// keep the global ones.
+// The wallet engine is linked statically and found at run time by name (DynamicLibrary.process()), so nothing in
+// the app calls its functions directly. Release builds would dead-strip those functions and strip their names,
+// leaving the app in demo mode (seen on a real iPhone, Nov 16). Keep both.
+DEAD_CODE_STRIPPING = NO
 STRIP_STYLE = non-global
