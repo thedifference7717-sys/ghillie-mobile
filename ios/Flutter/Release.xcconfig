@@ -1,2 +1,6 @@
 #include "Generated.xcconfig"
 #include? "Engine.xcconfig"
+// The wallet engine is linked statically and found at run time by name (DynamicLibrary.process()).
+// Release builds strip all symbols by default, which hides those names and leaves the app in demo mode;
+// keep the global ones.
+STRIP_STYLE = non-global
