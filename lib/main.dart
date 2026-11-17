@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/scope_intro.dart';
 import 'ui/app_lock.dart';
+import 'wallet/password_check.dart';
 import 'ui/theme.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -148,6 +149,7 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
   }
 
   void _lock({bool turnOnQuickUnlock = false}) {
+    PasswordCheck.forget();
     final w = _wallet;
     setState(() {
       _wallet = null;

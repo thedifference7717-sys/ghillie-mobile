@@ -15,6 +15,9 @@ Future<void> phone(WidgetTester t) async {
 }
 
 Future<void> tapKey(WidgetTester t, String k) async {
+  if (find.byKey(Key(k)).evaluate().isEmpty) {
+    await t.scrollUntilVisible(find.byKey(Key(k)), 200, scrollable: find.byType(Scrollable).first);
+  }
   await t.ensureVisible(find.byKey(Key(k)));
   await t.tap(find.byKey(Key(k)));
   await t.pumpAndSettle();

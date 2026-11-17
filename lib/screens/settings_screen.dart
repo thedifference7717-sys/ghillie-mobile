@@ -8,6 +8,7 @@ import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
 import '../wallet/address_book.dart';
 import 'address_book_screen.dart';
+import 'recovery_words_screen.dart';
 
 const ghillieMobileVersion = '0.1.0';
 
@@ -89,6 +90,11 @@ class SettingsScreen extends StatelessWidget {
                     book.dispose();
                   },
                   child: row('Saved addresses', '›'),
+                ),
+                InkWell(
+                  key: const Key('settings-words'),
+                  onTap: () => openRecoveryWords(context, wallet),
+                  child: row('Recovery words', 'Show · print  ›'),
                 ),
                 row('Ghillie fee', '0 · never'),
                 row('Price lookups', 'off'),

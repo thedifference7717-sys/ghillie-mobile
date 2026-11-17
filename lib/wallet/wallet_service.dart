@@ -79,6 +79,9 @@ abstract class WalletService extends ChangeNotifier {
   Future<String> commitSend(SendDraft draft); // returns txid
 
   /// Switches to another CAMO node (host:port); false if this wallet can't change nodes (demo).
+  /// The 25 recovery words, for Settings > Recovery words (after the password is checked again).
+  Future<List<String>> seedWords() async => throw UnsupportedError('This wallet cannot show its words.');
+
   bool get canChangeNode => false;
   Future<void> changeNode(String node) async => throw UnsupportedError('This wallet cannot change nodes.');
 }

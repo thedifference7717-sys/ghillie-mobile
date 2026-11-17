@@ -1,6 +1,7 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
 import 'amount.dart';
 import 'network.dart';
+import 'vault.dart' show DemoVault;
 import 'wallet_service.dart';
 
 CamoAmount _c(String s) => CamoAmount.tryParse(s)!;
@@ -12,6 +13,8 @@ class DemoWallet extends WalletService {
   final CamoNetwork network = CamoNetwork.stagenet;
   @override
   final bool isDemo = true;
+  @override
+  Future<List<String>> seedWords() async => DemoVault.sampleWords;
   @override
   final String walletName = 'Demo wallet';
 

@@ -75,6 +75,9 @@ class FfiWallet extends WalletService {
   final _Lib _l;
   final _P _w;
   @override
+  Future<List<String>> seedWords() async => _l.seed(_w).toDartString().split(' ');
+
+  @override
   final CamoNetwork network;
   @override
   final String walletName;

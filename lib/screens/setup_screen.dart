@@ -5,9 +5,12 @@
 // While the words are shown the screen is Sensitive: no Android screenshots, covered in app switchers.
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart' show LayoutCallback;
+import '../ui/seed_sheet.dart';
 import '../ui/sensitive.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../wallet/password_check.dart';
 import '../wallet/quick_unlock.dart';
 import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
@@ -22,7 +25,10 @@ class SetupScreen extends StatefulWidget {
   /// Ask for Face ID / fingerprint as soon as the screen opens (app start). False after the user locks the wallet
   /// on purpose: then it waits for a tap on "UNLOCK WITH FACE ID".
   final bool autoQuickUnlock;
-  const SetupScreen({super.key, required this.vault, required this.onReady, this.rememberNext = false, this.autoQuickUnlock = true});
+  /// Tests replace the system print dialog.
+  final Future<bool> Function(LayoutCallback onLayout)? printer;
+  const SetupScreen(
+      {super.key, required this.vault, required this.onReady, this.rememberNext = false, this.autoQuickUnlock = true, this.printer});
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
@@ -54,6 +60,7 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   Future<void> _ready(WalletService w, String password) async {
+    PasswordCheck.remember(password);
     if (_remember && quickUnlock.supported) {
       try {
         await quickUnlock.save(password);
@@ -68,7 +75,9 @@ class _SetupScreenState extends State<SetupScreen> {
         final pw = await quickUnlock.read();
         if (pw == null) throw StateError('${quickUnlock.name} not confirmed. You can type your password instead.');
         try {
-          widget.onReady(await widget.vault.open(pw));
+          final w = await widget.vault.open(pw);
+          PasswordCheck.remember(pw);
+          widget.onReady(w);
         } on WrongPassword {
           await quickUnlock.clear();
           setState(() => _quickSet = false);
@@ -264,24 +273,20 @@ class _SetupScreenState extends State<SetupScreen> {
                 style: Gt.body(14, color: Gc.amber)),
           ),
           const SizedBox(height: 12),
-          NotchBox(
-            child: Wrap(spacing: 8, runSpacing: 8, children: [
-              for (var i = 0; i < _seed.length; i++)
-                SizedBox(
-                  width: 98,
-                  child: Text('${(i + 1).toString().padLeft(2)} ${_seed[i]}', style: Gt.mono(13)),
-                ),
-            ]),
-          ),
+          SeedWordsGrid(_seed),
           const SizedBox(height: 10),
-          Text('No paper handy? Print a blank sheet from camocoin.org/recovery and fill it in by hand.',
+          _secondary('PRINT RECOVERY SHEET', () => printSeedSheet(context, _seed, printer: widget.printer),
+              key: const Key('setup-print')),
+          const SizedBox(height: 8),
+          Text('Prints one page with your words filled in, on your own printer. Nothing is saved. '
+              'Or print a blank sheet from camocoin.org/recovery and write them by hand.',
               key: const Key('setup-sheet-hint'), style: Gt.body(13, color: Gc.text3)),
           CheckboxListTile(
             key: const Key('setup-wrote'),
             contentPadding: EdgeInsets.zero,
             value: _wroteDown,
             onChanged: (v) => setState(() => _wroteDown = v ?? false),
-            title: Text('I wrote all 25 words on paper', style: Gt.body(14)),
+            title: Text('I have all 25 words on paper', style: Gt.body(14)),
           ),
           _primary('CONTINUE', _wroteDown ? () => _go(_Step.checkWords) : null, key: const Key('setup-continue')),
         ];
