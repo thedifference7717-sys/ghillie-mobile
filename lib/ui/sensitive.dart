@@ -38,7 +38,7 @@ Future<dynamic> _fromPlatform(MethodCall call) async {
   final top = _shown.last;
   switch (call.method) {
     case 'screenshot':
-      top._warnScreenshot();
+      top._warnScreenshot(blanked: call.arguments == true);
     case 'captured':
       top._setCaptured(call.arguments == true);
   }
@@ -78,7 +78,7 @@ class _SensitiveState extends State<Sensitive> with WidgetsBindingObserver {
     if (mounted && on != _captured) setState(() => _captured = on);
   }
 
-  Future<void> _warnScreenshot() async {
+  Future<void> _warnScreenshot({bool blanked = false}) async {
     if (!mounted || _warning) return;
     _warning = true;
     await showDialog<void>(
@@ -86,11 +86,14 @@ class _SensitiveState extends State<Sensitive> with WidgetsBindingObserver {
       builder: (c) => AlertDialog(
         key: const Key('screenshot-warning'),
         backgroundColor: Gc.panel,
-        title: Text('SCREENSHOT TAKEN', style: Gt.pixel(26, color: Gc.danger)),
+        title: Text('SCREENSHOT TAKEN', style: Gt.pixel(26, color: blanked ? Gc.amber : Gc.danger)),
         content: Text(
-          'Your 25 words are now in your Photos, and maybe in iCloud. Anyone who sees that picture can take '
-          'your coins.\n\nOpen Photos, delete the screenshot, then delete it again from Albums > Recently '
-          'Deleted. Write the words on paper instead.',
+          blanked
+              ? 'Ghillie blanked this screen, so the screenshot should show only black. Check it in Photos, '
+                  'then delete it, and delete it again from Albums > Recently Deleted. Write the words on paper.'
+              : 'Your 25 words are now in your Photos, and maybe in iCloud. Anyone who sees that picture can take '
+                  'your coins.\n\nOpen Photos, delete the screenshot, then delete it again from Albums > Recently '
+                  'Deleted. Write the words on paper instead.',
           style: Gt.body(15, color: Gc.text2),
         ),
         actions: [

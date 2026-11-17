@@ -235,6 +235,9 @@ void sensitiveTest() {
     expect(find.textContaining('Recently'), findsOneWidget);
     await tapKey(t, 'screenshot-warning-ok');
     expect(find.byKey(const Key('screenshot-warning')), findsNothing);
+    await fromIOS('screenshot', true); // iOS blanked the window: softer text, still asks to delete
+    expect(find.textContaining('should show only black'), findsOneWidget);
+    await tapKey(t, 'screenshot-warning-ok');
     await fromIOS('captured', true);
     expect(find.byKey(const Key('sensitive-cover')), findsOneWidget);
     await fromIOS('captured', false);
