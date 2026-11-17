@@ -46,6 +46,8 @@ void main() {
       expect(find.textContaining('Anyone with these words'), findsOneWidget);
 
       // continue is disabled until the user says they wrote the words down
+      expect(find.byKey(const Key('setup-sheet-hint')), findsOneWidget);
+      await t.scrollUntilVisible(find.byKey(const Key('setup-continue')), 200);
       expect(
         t
             .widget<FilledButton>(find.byKey(const Key('setup-continue')))
