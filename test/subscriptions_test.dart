@@ -23,6 +23,15 @@ void main() {
     expect(sub(paid: '2027-12').nextDate(DateTime(2027, 12, 20)), DateTime(2028, 1, 10));
   });
 
+  test('day 29-31 falls on the last day of shorter months', () {
+    expect(sub(day: 31).isDue(DateTime(2027, 2, 27)), isFalse);
+    expect(sub(day: 31).isDue(DateTime(2027, 2, 28)), isTrue);
+    expect(sub(day: 31).isDue(DateTime(2027, 4, 30)), isTrue);
+    expect(sub(day: 31).nextDate(DateTime(2027, 1, 31)), DateTime(2027, 1, 31));
+    expect(sub(day: 31, paid: '2027-01').nextDate(DateTime(2027, 1, 31)), DateTime(2027, 2, 28));
+    expect(sub(day: 30, paid: '2028-01').nextDate(DateTime(2028, 1, 31)), DateTime(2028, 2, 29));
+  });
+
   test('saved per wallet, survive a reload; broken data is ignored', () async {
     final store = MemorySubscriptionStore();
     final b = SubscriptionBook('w1', store: store);
@@ -67,7 +76,7 @@ void main() {
     await t.enterText(find.byKey(const Key('sub-address')), miner);
     await t.tap(find.byKey(const Key('sub-save')));
     await t.pumpAndSettle();
-    // the day defaults to today (max 28), so it is due right away
+    // the day defaults to today, so it is due right away
     expect(find.text('VPN'), findsOneWidget);
     expect(find.text('DUE NOW'), findsOneWidget);
 

@@ -15,21 +15,27 @@ class Subscription {
   final String name;
   final String address;
   final CamoAmount amount;
-  final int day; // 1..28, so every month has it
+  final int day; // 1..31; in shorter months a 29/30/31 payment falls on the last day
   final String? paidMonth; // 'yyyy-mm' of the last payment made from Ghillie
   const Subscription({required this.id, required this.name, required this.address, required this.amount, required this.day, this.paidMonth});
 
   static String monthOf(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
-  bool isDue(DateTime now) => now.day >= day && paidMonth != monthOf(now);
+  static int _daysIn(int year, int month) => DateTime(year, month + 1, 0).day;
+
+  /// This payment's day in the given month (the 31st is the 30th in April, the 28th or 29th in February).
+  int dayIn(int year, int month) => day > _daysIn(year, month) ? _daysIn(year, month) : day;
+
+  bool isDue(DateTime now) => now.day >= dayIn(now.year, now.month) && paidMonth != monthOf(now);
 
   /// The next date this payment is (or was) due, today included when it is still unpaid.
   DateTime nextDate(DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
     if (isDue(now)) return today;
-    final thisMonth = DateTime(now.year, now.month, day);
+    final thisMonth = DateTime(now.year, now.month, dayIn(now.year, now.month));
     if (paidMonth != monthOf(now) && !thisMonth.isBefore(today)) return thisMonth;
-    return DateTime(now.year, now.month + 1, day);
+    final next = DateTime(now.year, now.month + 1, 1);
+    return DateTime(next.year, next.month, dayIn(next.year, next.month));
   }
 
   Subscription copyWith({String? name, String? address, CamoAmount? amount, int? day, String? paidMonth}) => Subscription(
@@ -43,7 +49,7 @@ class Subscription {
     if (j is! Map) return null;
     final amount = CamoAmount.tryParse('${j['amount']}');
     final day = j['day'];
-    if (amount == null || day is! int || day < 1 || day > 28) return null;
+    if (amount == null || day is! int || day < 1 || day > 31) return null;
     return Subscription(
         id: '${j['id']}', name: '${j['name']}', address: '${j['address']}', amount: amount, day: day,
         paidMonth: j['paid'] as String?);

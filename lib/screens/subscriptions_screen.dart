@@ -97,7 +97,7 @@ class _SubRow extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(s.name, style: Gt.body(16, weight: FontWeight.w600)),
               const SizedBox(height: 2),
-              Text('${s.amount.format(minDecimals: 2)} CAMO · day ${s.day} of each month', style: Gt.body(13, color: Gc.text2)),
+              Text('${s.amount.format(minDecimals: 2)} CAMO · ${s.day == 31 ? 'last day' : 'day ${s.day}'} of each month', style: Gt.body(13, color: Gc.text2)),
               const SizedBox(height: 2),
               Text(due ? 'DUE NOW' : 'Next: ${_date(s.nextDate(now))}${s.paidMonth == Subscription.monthOf(now) ? ' · paid this month' : ''}',
                   style: due ? Gt.pixel(18, color: Gc.amber) : Gt.body(12, color: Gc.text3)),
@@ -126,7 +126,7 @@ class _EditDialogState extends State<_EditDialog> {
   late final _name = TextEditingController(text: widget.existing?.name);
   late final _address = TextEditingController(text: widget.existing?.address);
   late final _amount = TextEditingController(text: widget.existing?.amount.toPlain());
-  late int _day = widget.existing?.day ?? DateTime.now().day.clamp(1, 28);
+  late int _day = widget.existing?.day ?? DateTime.now().day;
   String? _error;
 
   void _save() {
@@ -175,10 +175,12 @@ class _EditDialogState extends State<_EditDialog> {
             DropdownButton<int>(
               key: const Key('sub-day'),
               value: _day,
-              items: [for (var d = 1; d <= 28; d++) DropdownMenuItem(value: d, child: Text('$d'))],
+              items: [for (var d = 1; d <= 31; d++) DropdownMenuItem(value: d, child: Text('$d'))],
               onChanged: (d) => setState(() => _day = d ?? _day),
             ),
           ]),
+          if (_day > 28)
+            Text('In shorter months: the last day of the month.', style: Gt.body(12, color: Gc.text3)),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: Gt.body(13, color: Gc.danger))),
         ]),
       ),
