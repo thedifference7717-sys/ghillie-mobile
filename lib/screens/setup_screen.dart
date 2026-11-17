@@ -273,6 +273,9 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
             ]),
           ),
+          const SizedBox(height: 10),
+          Text('No paper handy? Print a blank sheet from camocoin.org/recovery and fill it in by hand.',
+              key: const Key('setup-sheet-hint'), style: Gt.body(13, color: Gc.text3)),
           CheckboxListTile(
             key: const Key('setup-wrote'),
             contentPadding: EdgeInsets.zero,
