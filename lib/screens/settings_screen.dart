@@ -6,6 +6,8 @@ import '../ui/widgets.dart';
 import '../wallet/quick_unlock.dart';
 import '../wallet/vault.dart';
 import '../wallet/wallet_service.dart';
+import '../wallet/address_book.dart';
+import 'address_book_screen.dart';
 
 const ghillieMobileVersion = '0.1.0';
 
@@ -76,6 +78,18 @@ class SettingsScreen extends StatelessWidget {
                 else
                   row('Node', wallet.sync.nodeLabel),
                 if (quickUnlock.supported && AppLock.lock != null) _QuickUnlockRow(row: row),
+                InkWell(
+                  key: const Key('settings-saved'),
+                  onTap: () async {
+                    final book = AddressBook(wallet.walletName);
+                    await book.load();
+                    if (!context.mounted) return;
+                    await Navigator.push(
+                        context, MaterialPageRoute(builder: (_) => AddressBookScreen(wallet: wallet, book: book)));
+                    book.dispose();
+                  },
+                  child: row('Saved addresses', '›'),
+                ),
                 row('Ghillie fee', '0 · never'),
                 row('Price lookups', 'off'),
                 row('Version', 'Ghillie $ghillieMobileVersion${wallet.isDemo ? ' (demo)' : ''}'),

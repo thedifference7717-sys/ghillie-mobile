@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
+import 'address_book_screen.dart';
 import 'scan_screen.dart';
+import '../wallet/address_book.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/amount.dart';
@@ -150,7 +152,25 @@ class _SendScreenState extends State<SendScreen> {
                 ],
               ]),
               const SizedBox(height: 6),
-              Text('Paste or scan an address, or a camo: link to fill the amount too.', style: Gt.body(12, color: Gc.text3)),
+              Row(children: [
+                Expanded(
+                    child: Text('Paste or scan an address, or a camo: link to fill the amount too.',
+                        style: Gt.body(12, color: Gc.text3))),
+                TextButton.icon(
+                  key: const Key('send-saved'),
+                  onPressed: () async {
+                    final book = AddressBook(widget.wallet.walletName);
+                    await book.load();
+                    if (!context.mounted) return;
+                    final a = await Navigator.push<String>(context,
+                        MaterialPageRoute(builder: (_) => AddressBookScreen(wallet: widget.wallet, book: book, pick: true)));
+                    book.dispose();
+                    if (a != null) _to.text = a;
+                  },
+                  icon: const Icon(Icons.bookmark_outline, size: 18, color: Gc.amber),
+                  label: Text('Saved', style: Gt.body(13, color: Gc.amber)),
+                ),
+              ]),
               const SizedBox(height: 18),
               _label('Amount'),
               TextField(
