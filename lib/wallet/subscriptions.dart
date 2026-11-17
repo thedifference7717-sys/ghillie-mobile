@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'amount.dart';
+import 'reminders.dart';
 
 class Subscription {
   final String id;
@@ -119,11 +120,13 @@ class SubscriptionBook extends ChangeNotifier {
     }
     loaded = true;
     notifyListeners();
+    await paymentReminders.sync(_items, DateTime.now());
   }
 
   Future<void> _save() async {
     await store.write(wallet, jsonEncode([for (final s in _items) s.toJson()]));
     notifyListeners();
+    await paymentReminders.sync(_items, DateTime.now());
   }
 
   List<Subscription> due(DateTime now) => [for (final s in _items) if (s.isDue(now)) s];

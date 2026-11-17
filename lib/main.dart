@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'screens/setup_screen.dart';
 import 'wallet/demo_wallet.dart';
 import 'wallet/quick_unlock.dart';
+import 'wallet/reminders.dart';
 import 'wallet/subscriptions.dart';
 import 'wallet/vault.dart';
 import 'wallet/ffi_wallet.dart';
@@ -45,6 +46,7 @@ Future<void> main() async {
       vault.hasWallet; // fails here if the engine is not in this build
       quickUnlock = DeviceQuickUnlock(isIOS: Platform.isIOS); // only with the real wallet; opt-in per wallet
       subscriptionStore = DeviceSubscriptionStore();
+      paymentReminders = DeviceReminders();
     } catch (_) {
       vault = null; // demo build
     }

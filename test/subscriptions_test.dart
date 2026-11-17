@@ -4,6 +4,7 @@ import 'package:ghillie/main.dart';
 import 'package:ghillie/screens/subscriptions_screen.dart';
 import 'package:ghillie/wallet/amount.dart';
 import 'package:ghillie/wallet/demo_wallet.dart';
+import 'package:ghillie/wallet/reminders.dart';
 import 'package:ghillie/wallet/subscriptions.dart';
 
 const miner = 'QRDxe3VEFdw3pgkqkDJwy8BCzRJxf49EwC7xCPBGchvF55si1tj45rreWb1bU1MoZp9iWaKHHQHV4gHutjkxuQrR1PN3Lxcb9';
@@ -41,6 +42,28 @@ void main() {
     final again = Subscription.fromJson(s.toJson())!;
     expect(again.start, DateTime(2027, 3, 5));
     expect(again.isDue(DateTime(2027, 3, 4)), isFalse);
+  });
+
+  test('reminders: 9:00 on the next due day, skipped once passed, never names the payment', () async {
+    final now = DateTime(2027, 1, 9, 12);
+    expect(plan([sub(day: 10)], now).single.$2, DateTime(2027, 1, 10, 9));
+    expect(plan([sub(day: 9)], now), isEmpty); // due today, 9:00 already passed: the app shows it
+    expect(plan([sub(day: 9)], DateTime(2027, 1, 9, 8)).single.$2, DateTime(2027, 1, 9, 9));
+    expect(plan([sub(day: 5, paid: '2027-01')], now).single.$2, DateTime(2027, 2, 5, 9));
+    expect(reminderId('a'), reminderId('a'));
+    expect(reminderId('a'), isNot(reminderId('b')));
+    expect(reminderBody.contains('VPN') || reminderBody.contains('CAMO'), isFalse);
+
+    final r = MemoryReminders();
+    paymentReminders = r;
+    addTearDown(() => paymentReminders = NoReminders());
+    final b = SubscriptionBook('w', store: MemorySubscriptionStore());
+    await b.load();
+    expect(r.scheduled, isEmpty);
+    await b.put(Subscription(id: 'x', name: 'VPN', address: miner, amount: CamoAmount.tryParse('1')!, day: 28, start: DateTime(2099, 1, 28)));
+    expect(r.scheduled.values.single, DateTime(2099, 1, 28, 9));
+    await b.remove('x');
+    expect(r.scheduled, isEmpty);
   });
 
   test('saved per wallet, survive a reload; broken data is ignored', () async {
