@@ -150,26 +150,29 @@ class _EditDialogState extends State<_EditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    InputDecoration deco(String label, [String? hint]) => InputDecoration(labelText: label, hintText: hint);
+    // label above the box: a floating label would be crossed by the notched border
+    Widget field(String label, Widget box) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(label, style: Gt.body(13, color: Gc.text2, weight: FontWeight.w500))),
+            box,
+          ]),
+        );
     return AlertDialog(
       title: Text(widget.existing == null ? 'NEW SUBSCRIPTION' : 'EDIT SUBSCRIPTION', style: Gt.pixel(24)),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          TextField(key: const Key('sub-name'), controller: _name, decoration: deco('Name', 'VPN, hosting, donation…')),
-          const SizedBox(height: 10),
-          TextField(
-              key: const Key('sub-address'),
-              controller: _address,
-              autocorrect: false,
-              style: Gt.mono(13),
-              decoration: deco('Address or camo: link')),
-          const SizedBox(height: 10),
-          TextField(
-              key: const Key('sub-amount'),
-              controller: _amount,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: deco('Amount (CAMO)')),
-          const SizedBox(height: 10),
+          field('Name', TextField(
+              key: const Key('sub-name'), controller: _name,
+              decoration: const InputDecoration(hintText: 'VPN, hosting, donation…'))),
+          field('Address or camo: link', TextField(
+              key: const Key('sub-address'), controller: _address, autocorrect: false, enableSuggestions: false,
+              style: Gt.mono(13))),
+          field('Amount (CAMO)', TextField(
+              key: const Key('sub-amount'), controller: _amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true))),
           Row(children: [
             Expanded(child: Text('Day of the month', style: Gt.body(14, color: Gc.text2))),
             DropdownButton<int>(
