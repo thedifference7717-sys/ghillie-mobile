@@ -429,7 +429,7 @@ void lockToIntroTest() {
     expect(find.byKey(const Key('setup-pw')), findsNothing);
   });
 
-  testWidgets('auto-lock after 13 minutes without a touch', (t) async {
+  testWidgets('auto-lock after 7 min 17 s without a touch', (t) async {
     await phone(t);
     final v = DemoVault();
     await v.restore(DemoVault.sampleWords, 'correct horse', 0);
@@ -441,11 +441,11 @@ void lockToIntroTest() {
       await t.pump(const Duration(milliseconds: 100));
     }
     expect(find.byKey(const Key('setup-pw')), findsNothing); // wallet open
-    await t.pump(const Duration(minutes: 12));
+    await t.pump(const Duration(minutes: 7));
     await t.tapAt(const Offset(5, 5)); // a touch restarts the clock
-    await t.pump(const Duration(minutes: 12));
+    await t.pump(const Duration(minutes: 7, seconds: 16));
     expect(find.byKey(const Key('setup-pw')), findsNothing);
-    await t.pump(const Duration(minutes: 1, seconds: 1));
+    await t.pump(const Duration(seconds: 2));
     for (var k = 0; k < 10; k++) {
       await t.pump(const Duration(milliseconds: 100));
     }

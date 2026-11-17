@@ -23,8 +23,8 @@ import 'wallet/wallet_service.dart';
 /// The project's public read-only stagenet node for phones (AWS seed, `deploy-seed-node.sh --public-rpc`, Nov 14).
 const stagenetPhoneNode = '3.134.132.214:39749';
 
-/// The wallet locks itself after this long without a touch, or after this long in the background (Anthony, Nov 17).
-const autoLockAfter = Duration(minutes: 13);
+/// The wallet locks itself after this long without a touch, or after this long in the background (Anthony, Nov 17: 7:17).
+const autoLockAfter = Duration(minutes: 7, seconds: 17);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
