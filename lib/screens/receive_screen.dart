@@ -1,6 +1,7 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../ui/qr_view.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -17,9 +18,20 @@ class ReceiveScreen extends StatefulWidget {
 
 class _ReceiveScreenState extends State<ReceiveScreen> {
   final _req = TextEditingController();
+  final _note = TextEditingController();
   late ReceiveAddress _addr = widget.wallet.receiveAddresses.last;
 
-  String get _link => PaymentUri(_addr.address, amount: CamoAmount.tryParse(_req.text)).build();
+  String get _link => PaymentUri(_addr.address,
+          amount: CamoAmount.tryParse(_req.text), description: _note.text.trim().isEmpty ? null : _note.text.trim())
+      .build();
+
+  /// The text sent through the share sheet: a short line a person can read, then the link wallets open.
+  String get _shareText {
+    final a = CamoAmount.tryParse(_req.text);
+    final note = _note.text.trim();
+    final head = a == null || a.isZero ? 'Pay me in CAMO' : 'Please pay ${a.format(minDecimals: 0)} CAMO';
+    return '$head${note.isEmpty ? '' : ' · $note'}\n$_link';
+  }
 
   Future<String?> _askLabel(String title, String initial) {
     final c = TextEditingController(text: initial);
@@ -83,14 +95,36 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             child: SizedBox(
               height: 52,
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _link));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment link copied')));
-                },
-                icon: const Icon(Icons.copy, size: 18),
-                label: const Text('Copy link'),
-              ),
+              child: Row(children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('receive-share'),
+                    onPressed: () async {
+                      final box = context.findRenderObject() as RenderBox?;
+                      await SharePlus.instance.share(ShareParams(
+                        text: _shareText,
+                        // iPad needs an anchor for the share popover
+                        sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+                      ));
+                    },
+                    icon: const Icon(Icons.ios_share, size: 18),
+                    label: const Text('Share request'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 52,
+                  child: OutlinedButton(
+                    key: const Key('receive-copy'),
+                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: _link));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment link copied')));
+                    },
+                    child: const Icon(Icons.copy, size: 18, color: Gc.text2, semanticLabel: 'Copy link'),
+                  ),
+                ),
+              ]),
             ),
           ),
           const SizedBox(height: 18),
@@ -110,7 +144,17 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                   suffixIcon: Padding(padding: const EdgeInsets.only(right: 14, top: 14), child: Text('CAMO', style: Gt.pixel(18, color: Gc.olive))),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+              Text('Note (optional, the payer sees it)', style: Gt.body(13, color: Gc.text2, weight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('receive-note'),
+                controller: _note,
+                maxLength: 60,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(hintText: 'Dinner, invoice #12…'),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 height: 52,
                 width: double.infinity,

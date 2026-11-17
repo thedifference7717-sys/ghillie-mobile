@@ -56,6 +56,12 @@ class _SendScreenState extends State<SendScreen> {
 
   String get _address => PaymentUri.tryParse(_to.text)?.address ?? _to.text.trim();
 
+  /// The note in a pasted or scanned camo: link (tx_description), shown so the payer knows what it is for.
+  String? get _linkNote {
+    final d = PaymentUri.tryParse(_to.text)?.description ?? widget.prefill?.description;
+    return d == null || d.trim().isEmpty ? null : d.trim();
+  }
+
   Future<void> _estimate() async {
     final d = await widget.wallet.prepareSend(
         address: _address, amount: CamoAmount.tryParse(_amount.text) ?? CamoAmount.zero, sweepAll: _sweepAll, priority: _priority);
@@ -152,6 +158,19 @@ class _SendScreenState extends State<SendScreen> {
                 ],
               ]),
               const SizedBox(height: 6),
+              if (_linkNote != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: NotchBox(
+                    key: const Key('send-link-note'),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(children: [
+                      const Icon(Icons.sticky_note_2_outlined, size: 18, color: Gc.amber),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('For: $_linkNote', style: Gt.body(14, color: Gc.text))),
+                    ]),
+                  ),
+                ),
               Row(children: [
                 Expanded(
                     child: Text('Paste or scan an address, or a camo: link to fill the amount too.',
