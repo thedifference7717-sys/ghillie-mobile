@@ -17,6 +17,8 @@
 	<false/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Ghillie can use Face ID to unlock your wallet instead of typing the password, if you turn it on. Your face data never leaves Apple's secure hardware.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Ghillie talks to the computers you paired in Rigs, on your own Wi-Fi, to start, stop and watch their mining.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ghillie uses the camera only to scan CAMO payment QR codes. Images never leave your phone.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
