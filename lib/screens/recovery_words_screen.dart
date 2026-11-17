@@ -10,6 +10,7 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/password_check.dart';
 import '../wallet/quick_unlock.dart';
+import '../wallet/wallet_meta.dart';
 import '../wallet/wallet_service.dart';
 
 /// Asks for the password, then opens the words. Returns quietly on Cancel.
@@ -86,19 +87,108 @@ Future<void> openRecoveryWords(
   pw.clear();
   if (ok != true || !context.mounted) return;
   final words = await wallet.seedWords();
+  final meta = await WalletMeta.load(wallet.walletName);
   if (!context.mounted) return;
   await Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => RecoveryWordsScreen(words: words, printer: printer),
+      builder: (_) => RecoveryWordsScreen(words: words, meta: meta, walletName: wallet.walletName, printer: printer),
     ),
   );
 }
 
-class RecoveryWordsScreen extends StatelessWidget {
+class RecoveryWordsScreen extends StatefulWidget {
   final List<String> words;
+  final WalletMeta meta;
+  final String? walletName; // null: date and height can't be edited (tests)
   final Future<bool> Function(LayoutCallback onLayout)? printer;
-  const RecoveryWordsScreen({super.key, required this.words, this.printer});
+  const RecoveryWordsScreen({
+    super.key,
+    required this.words,
+    this.meta = const WalletMeta(),
+    this.walletName,
+    this.printer,
+  });
+  @override
+  State<RecoveryWordsScreen> createState() => _RecoveryWordsScreenState();
+}
+
+class _RecoveryWordsScreenState extends State<RecoveryWordsScreen> {
+  late WalletMeta meta = widget.meta;
+  List<String> get words => widget.words;
+  Future<bool> Function(LayoutCallback onLayout)? get printer => widget.printer;
+
+  Future<void> _fillIn() async {
+    DateTime? date = meta.created;
+    final height = TextEditingController(text: meta.restoreHeight?.toString());
+    String? error;
+    final r = await showDialog<WalletMeta>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: Text('DATE AND HEIGHT', style: Gt.pixel(24)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Date the wallet was made',
+                style: Gt.body(13, color: Gc.text2, weight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              OutlinedButton(
+                key: const Key('meta-date'),
+                onPressed: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: date ?? DateTime.now(),
+                    firstDate: DateTime(2026),
+                    lastDate: DateTime.now(),
+                  );
+                  if (d != null) set(() => date = d);
+                },
+                child: Text(date == null ? 'Pick the date' : sheetDate(date!)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Restore height (round down; 0 is always safe)',
+                style: Gt.body(13, color: Gc.text2, weight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                key: const Key('meta-height'),
+                controller: height,
+                keyboardType: TextInputType.number,
+                style: Gt.mono(14),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(error!, style: Gt.body(13, color: Gc.danger)),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              key: const Key('meta-save'),
+              onPressed: () {
+                final t = height.text.trim();
+                final h = t.isEmpty ? null : int.tryParse(t);
+                if (t.isNotEmpty && (h == null || h < 0)) return set(() => error = 'A block number, like 7000.');
+                Navigator.pop(ctx, WalletMeta(created: date, restoreHeight: h));
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (r == null) return;
+    await WalletMeta.set(widget.walletName!, r);
+    if (mounted) setState(() => meta = r);
+  }
+
   @override
   Widget build(BuildContext context) => Sensitive(
     child: Scaffold(
@@ -122,10 +212,32 @@ class RecoveryWordsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   SeedWordsGrid(words),
+                  const SizedBox(height: 10),
+                  Text(
+                    key: const Key('words-meta'),
+                    [
+                      'Made: ${meta.created == null ? 'not recorded (write it by hand)' : sheetDate(meta.created!)}',
+                      'Restore height: ${meta.restoreHeight?.toString() ?? 'not recorded (write it by hand; 0 is always safe)'}',
+                    ].join('\n'),
+                    style: Gt.mono(12, color: Gc.text2),
+                  ),
+                  if (widget.walletName != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        key: const Key('words-meta-edit'),
+                        onPressed: _fillIn,
+                        child: Text(
+                          meta.created == null || meta.restoreHeight == null
+                              ? 'Fill in date and height'
+                              : 'Edit date and height',
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 14),
                   OutlinedButton.icon(
                     key: const Key('words-print'),
-                    onPressed: () => printSeedSheet(context, words, printer: printer),
+                    onPressed: () => printSeedSheet(context, words, printer: printer, meta: meta),
                     icon: const Icon(Icons.print_outlined, color: Gc.text2),
                     label: Text('PRINT RECOVERY SHEET', style: Gt.pixel(20)),
                   ),

@@ -7,6 +7,9 @@ import 'package:ghillie/screens/recovery_words_screen.dart';
 import 'package:ghillie/screens/setup_screen.dart';
 import 'package:ghillie/wallet/password_check.dart';
 import 'package:ghillie/wallet/quick_unlock.dart';
+import 'package:ghillie/wallet/demo_wallet.dart';
+import 'package:ghillie/wallet/subscriptions.dart';
+import 'package:ghillie/wallet/wallet_meta.dart';
 import 'package:ghillie/ui/seed_sheet.dart';
 import 'package:ghillie/wallet/vault.dart';
 import 'package:pdf/pdf.dart';
@@ -124,6 +127,15 @@ void main() {
     q.approve = true;
     await tap('words-quick');
     expect(find.byType(RecoveryWordsScreen), findsOneWidget);
+    expect(find.textContaining('Made: ${sheetDate(DateTime.now())}'), findsOneWidget); // recorded when created
+
+    await tap('words-meta-edit');
+    await t.enterText(find.byKey(const Key('meta-height')), 'abc');
+    await tap('meta-save');
+    expect(find.textContaining('A block number'), findsOneWidget);
+    await t.enterText(find.byKey(const Key('meta-height')), '7000');
+    await tap('meta-save');
+    expect(find.textContaining('Restore height: 7000'), findsOneWidget);
 
     var printed = 0;
     await t.pumpWidget(MaterialApp(
@@ -137,5 +149,27 @@ void main() {
     expect(printed, 1);
     PasswordCheck.forget();
     expect(PasswordCheck.matches('correct horse'), isFalse); // forgotten on lock
+  });
+
+  test('sheet prints the date made and restore height when known', () async {
+    final m = WalletMeta(created: DateTime(2026, 11, 16), restoreHeight: 7000);
+    final text = latin1.decode(await seedSheetPdf(DemoVault.sampleWords, PdfPageFormat.letter, compress: false, meta: m));
+    expect(text, allOf(contains('[(Nov)]'), contains('[(16,)]'), contains('[(2026)]')));
+    expect(text, contains('[(7000)]'));
+    final out = Platform.environment['SEED_SHEET_OUT'];
+    if (out != null) File(out).writeAsBytesSync(await seedSheetPdf(DemoVault.sampleWords, PdfPageFormat.letter, meta: m));
+    final blank = latin1.decode(await seedSheetPdf(DemoVault.sampleWords, PdfPageFormat.letter, compress: false));
+    expect(blank, isNot(contains('[(7000)]')));
+  });
+
+  test('a new wallet records today and the chain height minus the margin', () async {
+    final store = MemorySubscriptionStore();
+    final w = DemoWallet();
+    await WalletMeta.recordCreated(w, store: store, now: DateTime(2026, 12, 15, 18));
+    final m = await WalletMeta.load(w.walletName, store: store);
+    expect(m.created, DateTime(2026, 12, 15, 18));
+    expect(m.restoreHeight, w.sync.chainHeight > 0 ? lessThanOrEqualTo(w.sync.chainHeight - WalletMeta.margin) : isNull);
+    await WalletMeta.recordRestored(w, 1234, store: store);
+    expect((await WalletMeta.load(w.walletName, store: store)).restoreHeight, 1234);
   });
 }

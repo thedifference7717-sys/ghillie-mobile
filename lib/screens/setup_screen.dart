@@ -13,6 +13,7 @@ import '../ui/widgets.dart';
 import '../wallet/password_check.dart';
 import '../wallet/quick_unlock.dart';
 import '../wallet/vault.dart';
+import '../wallet/wallet_meta.dart';
 import '../wallet/wallet_service.dart';
 
 const minPasswordLength = 8;
@@ -150,6 +151,7 @@ class _SetupScreenState extends State<SetupScreen> {
         final p = _passwordProblem();
         if (p != null) throw StateError(p);
         final (w, words) = await widget.vault.create(_pw.text);
+        await WalletMeta.recordCreated(w);
         _created = w;
         _seed = words;
         final picks = (List.generate(words.length, (i) => i)..shuffle(Random.secure())).take(3).toList()..sort();
@@ -177,7 +179,9 @@ class _SetupScreenState extends State<SetupScreen> {
         if (h == null || h < 0) throw StateError('Restore height must be a block number (0 if unsure).');
         final p = _passwordProblem();
         if (p != null) throw StateError(p);
-        await _ready(await widget.vault.restore(words, _pw.text, h), _pw.text);
+        final w = await widget.vault.restore(words, _pw.text, h);
+        await WalletMeta.recordRestored(w, h);
+        await _ready(w, _pw.text);
       });
 
   Future<void> _unlock() => _run(() async => _ready(await widget.vault.open(_pw.text), _pw.text));
@@ -275,7 +279,7 @@ class _SetupScreenState extends State<SetupScreen> {
           const SizedBox(height: 12),
           SeedWordsGrid(_seed),
           const SizedBox(height: 10),
-          _secondary('PRINT RECOVERY SHEET', () => printSeedSheet(context, _seed, printer: widget.printer),
+          _secondary('PRINT RECOVERY SHEET', () async => printSeedSheet(context, _seed, printer: widget.printer, meta: _created == null ? null : await WalletMeta.load(_created!.walletName)),
               key: const Key('setup-print')),
           const SizedBox(height: 8),
           Text('Prints one page with your words filled in, on your own printer. Nothing is saved. '

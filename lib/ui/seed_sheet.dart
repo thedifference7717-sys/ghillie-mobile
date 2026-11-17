@@ -8,11 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../wallet/wallet_meta.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
 /// One page: the numbered words in a 5 x 5 grid, blanks to write on, and the rules.
-Future<Uint8List> seedSheetPdf(List<String> words, PdfPageFormat format, {bool compress = true}) {
+Future<Uint8List> seedSheetPdf(List<String> words, PdfPageFormat format, {bool compress = true, WalletMeta? meta}) {
   final doc = pw.Document(
     compress: compress,
     title: 'Recovery sheet',
@@ -21,12 +22,17 @@ Future<Uint8List> seedSheetPdf(List<String> words, PdfPageFormat format, {bool c
     producer: 'Ghillie',
   );
   final ink = PdfColor.fromInt(0xFF1E2418), grey = PdfColor.fromInt(0xFF6B7062);
-  pw.Widget blank(String label) => pw.Expanded(
+  pw.Widget blank(String label, [String? value]) => pw.Expanded(
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Container(
           height: 22,
+          alignment: pw.Alignment.bottomLeft,
+          padding: const pw.EdgeInsets.only(bottom: 3),
+          child: value == null
+              ? null
+              : pw.Text(value, style: pw.TextStyle(font: pw.Font.courierBold(), fontSize: 12, color: ink)),
           decoration: pw.BoxDecoration(
             border: pw.Border(bottom: pw.BorderSide(color: ink)),
           ),
@@ -93,11 +99,11 @@ Future<Uint8List> seedSheetPdf(List<String> words, PdfPageFormat format, {bool c
             ],
           ),
           pw.SizedBox(height: 26),
-          pw.Row(children: [blank('Wallet name (optional)'), pw.SizedBox(width: 16), blank('Date')]),
+          pw.Row(children: [blank('Wallet name (optional)'), pw.SizedBox(width: 16), blank('Date the wallet was made', meta?.created == null ? null : sheetDate(meta!.created!))]),
           pw.SizedBox(height: 14),
           pw.Row(
             children: [
-              blank('Restore height (optional; speeds up a restore)'),
+              blank('Restore height (speeds up a restore; lower is always safe)', meta?.restoreHeight?.toString()),
               pw.SizedBox(width: 16),
               blank('Where the second copy is kept'),
             ],
@@ -120,6 +126,7 @@ Future<void> printSeedSheet(
   BuildContext context,
   List<String> words, {
   Future<bool> Function(LayoutCallback onLayout)? printer,
+  WalletMeta? meta,
 }) async {
   final go = await showDialog<bool>(
     context: context,
@@ -143,7 +150,7 @@ Future<void> printSeedSheet(
   );
   if (go != true) return;
   await (printer ?? (f) => Printing.layoutPdf(onLayout: f, name: 'Recovery sheet'))(
-    (format) => seedSheetPdf(words, format),
+    (format) => seedSheetPdf(words, format, meta: meta),
   );
 }
 
