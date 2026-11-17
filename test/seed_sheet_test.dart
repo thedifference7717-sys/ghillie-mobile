@@ -6,6 +6,7 @@ import 'package:ghillie/main.dart';
 import 'package:ghillie/screens/recovery_words_screen.dart';
 import 'package:ghillie/screens/setup_screen.dart';
 import 'package:ghillie/wallet/password_check.dart';
+import 'package:ghillie/wallet/quick_unlock.dart';
 import 'package:ghillie/ui/seed_sheet.dart';
 import 'package:ghillie/wallet/vault.dart';
 import 'package:pdf/pdf.dart';
@@ -108,6 +109,21 @@ void main() {
     expect(find.byType(RecoveryWordsScreen), findsOneWidget);
     expect(find.text(' 3 only'), findsOneWidget);
     expect(find.byKey(const Key('words-print')), findsOneWidget);
+    Navigator.of(t.element(find.byType(RecoveryWordsScreen))).pop();
+    await t.pumpAndSettle();
+
+    // Face ID instead of typing (password forgotten): works only when the saved password matches
+    final q = MemoryQuickUnlock();
+    quickUnlock = q;
+    addTearDown(() => quickUnlock = NoQuickUnlock());
+    await q.save('correct horse');
+    q.approve = false;
+    await tap('settings-words');
+    await tap('words-quick');
+    expect(find.textContaining('not confirmed'), findsOneWidget);
+    q.approve = true;
+    await tap('words-quick');
+    expect(find.byType(RecoveryWordsScreen), findsOneWidget);
 
     var printed = 0;
     await t.pumpWidget(MaterialApp(

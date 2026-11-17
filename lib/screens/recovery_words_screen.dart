@@ -9,6 +9,7 @@ import '../ui/sensitive.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/password_check.dart';
+import '../wallet/quick_unlock.dart';
 import '../wallet/wallet_service.dart';
 
 /// Asks for the password, then opens the words. Returns quietly on Cancel.
@@ -19,6 +20,8 @@ Future<void> openRecoveryWords(
 }) async {
   final pw = TextEditingController();
   String? error;
+  final quick = quickUnlock.supported && await quickUnlock.isSet();
+  if (!context.mounted) return;
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -46,6 +49,25 @@ Future<void> openRecoveryWords(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(error!, style: Gt.body(13, color: Gc.danger)),
               ),
+            if (quick) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const Key('words-quick'),
+                // Face ID / fingerprint releases the saved password; it must still match the unlocked wallet's.
+                onPressed: () async {
+                  String? saved;
+                  try {
+                    saved = await quickUnlock.read();
+                  } catch (_) {}
+                  if (!ctx.mounted) return;
+                  saved != null && PasswordCheck.matches(saved)
+                      ? Navigator.pop(ctx, true)
+                      : set(() => error = '${quickUnlock.name} not confirmed. Type your password instead.');
+                },
+                icon: const Icon(Icons.face_unlock_outlined, color: Gc.text2),
+                label: Text('Use ${quickUnlock.name}'),
+              ),
+            ],
           ],
         ),
         actions: [
