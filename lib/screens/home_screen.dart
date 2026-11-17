@@ -166,7 +166,9 @@ class _Tile extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: Text(title, style: Gt.body(15, weight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
               const SizedBox(width: 8),
-              Flexible(child: Text(trailing, style: Gt.body(13, color: Gc.text3), overflow: TextOverflow.ellipsis)),
+              ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 170),
+                  child: Text(trailing, style: Gt.body(13, color: Gc.text3), overflow: TextOverflow.ellipsis)),
               const Icon(Icons.chevron_right, color: Gc.text3),
             ]),
           ),
@@ -201,7 +203,8 @@ class _SubsTile extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(child: Text('Subscriptions', style: Gt.body(15, weight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 8),
-            Flexible(
+            ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 170),
                 child: Text(text,
                     style: due > 0 ? Gt.pixel(18, color: Gc.amber) : Gt.body(13, color: Gc.text3),
                     overflow: TextOverflow.ellipsis)),
