@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghillie/main.dart';
 import 'package:ghillie/screens/settings_screen.dart';
@@ -207,6 +208,31 @@ void sensitiveTest() {
     expect(find.byKey(const Key('sensitive-cover')), findsOneWidget);
     t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await t.pump();
+    expect(find.byKey(const Key('sensitive-cover')), findsNothing);
+  });
+
+  testWidgets('iOS: a screenshot of the words brings up a warning; recording covers them', (t) async {
+    await phone(t);
+    await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
+    await tapKey(t, 'setup-create');
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-make');
+    Future<void> fromIOS(String method, [Object? arg]) async {
+      const codec = StandardMethodCodec();
+      await t.binding.defaultBinaryMessenger.handlePlatformMessage(
+          'org.camocoin.ghillie/secure', codec.encodeMethodCall(MethodCall(method, arg)), (_) {});
+      await t.pumpAndSettle();
+    }
+
+    await fromIOS('screenshot');
+    expect(find.byKey(const Key('screenshot-warning')), findsOneWidget);
+    expect(find.textContaining('Recently'), findsOneWidget);
+    await tapKey(t, 'screenshot-warning-ok');
+    expect(find.byKey(const Key('screenshot-warning')), findsNothing);
+    await fromIOS('captured', true);
+    expect(find.byKey(const Key('sensitive-cover')), findsOneWidget);
+    await fromIOS('captured', false);
     expect(find.byKey(const Key('sensitive-cover')), findsNothing);
   });
 }
