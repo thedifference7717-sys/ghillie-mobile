@@ -1,5 +1,8 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
 import 'dart:async';
+import 'package:app_links/app_links.dart';
+import 'screens/send_screen.dart';
+import 'wallet/payment_uri.dart';
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/scope_intro.dart';
@@ -59,7 +62,10 @@ class GhillieApp extends StatefulWidget {
   final WalletVault? vault;
   final WalletService? wallet;
   final bool showIntro;
-  const GhillieApp({super.key, this.vault, this.wallet, this.showIntro = true}) : assert(vault != null || wallet != null);
+  /// camo: links opened from outside (tests pass their own stream; null = the platform's, via app_links).
+  final Stream<String>? links;
+  const GhillieApp({super.key, this.vault, this.wallet, this.showIntro = true, this.links})
+      : assert(vault != null || wallet != null);
   @override
   State<GhillieApp> createState() => _GhillieAppState();
 }
@@ -72,6 +78,9 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
 
   Timer? _idle;
   DateTime? _wentAway;
+  final _nav = GlobalKey<NavigatorState>();
+  StreamSubscription<String>? _links;
+  PaymentUri? _pendingPay; // a camo: link that arrived; opened on Send once the wallet is unlocked
 
   @override
   void initState() {
@@ -80,6 +89,29 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
       AppLock.lock = _lock;
       WidgetsBinding.instance.addObserver(this);
     }
+    try {
+      _links = (widget.links ?? AppLinks().stringLinkStream).listen(_onLink, onError: (_) {});
+    } catch (_) {
+      // no platform link support (desktop dev builds)
+    }
+  }
+
+  /// A tapped camo: link: Send opens filled in (after unlock); nothing is ever paid without the normal review.
+  void _onLink(String link) {
+    final p = PaymentUri.tryParse(link);
+    if (p == null) return;
+    _pendingPay = p;
+    _openPendingPay();
+  }
+
+  void _openPendingPay() {
+    final p = _pendingPay, w = _wallet;
+    if (p == null || w == null || _intro) return;
+    _pendingPay = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _nav.currentState?.push(MaterialPageRoute(builder: (_) => SendScreen(wallet: w, prefill: p)));
+    });
+    WidgetsBinding.instance.scheduleFrame(); // a link can arrive while nothing else is redrawing
   }
 
   @override
@@ -87,6 +119,7 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
     if (AppLock.lock == _lock) AppLock.lock = null;
     WidgetsBinding.instance.removeObserver(this);
     _idle?.cancel();
+    _links?.cancel();
     super.dispose();
   }
 
@@ -130,6 +163,7 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'Ghillie',
+        navigatorKey: _nav,
         debugShowCheckedModeBanner: false,
         theme: ghillieTheme(),
         builder: (c, child) =>
@@ -137,7 +171,10 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
         home: AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
           child: _intro
-              ? ScopeIntro(key: const ValueKey('intro'), onEnter: () => setState(() => _intro = false))
+              ? ScopeIntro(key: const ValueKey('intro'), onEnter: () {
+                  setState(() => _intro = false);
+                  _openPendingPay();
+                })
               : _wallet == null
                   ? SetupScreen(
                       key: ValueKey('setup-$_turnOnQuick-$_lockedByUser'),
@@ -147,6 +184,7 @@ class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
                       onReady: (w) {
                         setState(() => _wallet = w);
                         _touched();
+                        _openPendingPay();
                       })
                   : HomeScreen(key: const ValueKey('home'), wallet: _wallet!),
         ),

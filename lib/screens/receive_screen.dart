@@ -7,7 +7,11 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../wallet/amount.dart';
 import '../wallet/payment_uri.dart';
+
 import '../wallet/wallet_service.dart';
+
+/// The shareable web link for a camo: payment link.
+String payPageUrl(String camoLink) => 'https://camocoin.org/pay#${Uri.encodeComponent(camoLink)}';
 
 class ReceiveScreen extends StatefulWidget {
   final WalletService wallet;
@@ -30,7 +34,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     final a = CamoAmount.tryParse(_req.text);
     final note = _note.text.trim();
     final head = a == null || a.isZero ? 'Pay me in CAMO' : 'Please pay ${a.format(minDecimals: 0)} CAMO';
-    return '$head${note.isEmpty ? '' : ' · $note'}\n$_link';
+    // camocoin.org/pay shows the request and opens Ghillie; the request rides in the '#' part, which the browser
+    // never sends to the website.
+    return '$head${note.isEmpty ? '' : ' · $note'}\n${payPageUrl(_link)}';
   }
 
   Future<String?> _askLabel(String title, String initial) {

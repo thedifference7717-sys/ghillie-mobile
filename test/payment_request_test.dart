@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 import 'package:ghillie/main.dart';
+import 'package:ghillie/screens/receive_screen.dart';
 import 'package:ghillie/wallet/demo_wallet.dart';
 import 'package:ghillie/wallet/payment_uri.dart';
 
@@ -31,5 +33,29 @@ void main() {
     await t.pump();
     expect(find.text('For: Dinner & drinks'), findsOneWidget);
     expect(find.text('12.5'), findsOneWidget);
+  });
+
+  test('share link: camocoin.org/pay with the request after #', () {
+    final u = payPageUrl('camo:QRDx?tx_amount=2&tx_description=dinner & drinks');
+    expect(u, startsWith('https://camocoin.org/pay#camo%3AQRDx'));
+    expect(Uri.decodeComponent(u.split('#')[1]), 'camo:QRDx?tx_amount=2&tx_description=dinner & drinks');
+  });
+
+  testWidgets('a tapped camo: link opens Send filled in; monero: links are ignored', (t) async {
+    t.view.physicalSize = const Size(390, 844) * 3;
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    final links = StreamController<String>();
+    addTearDown(links.close);
+    await t.pumpWidget(GhillieApp(wallet: DemoWallet(), showIntro: false, links: links.stream));
+    await t.pumpAndSettle();
+    links.add('monero:44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A?tx_amount=1');
+    await t.pumpAndSettle();
+    expect(find.text('SEND CAMO'), findsNothing);
+    links.add('camo:QRDxe3VEFdw3pgkqkDJwy8BCzRJxf49EwC7xCPBGchvF55si1tj45rreWb1bU1MoZp9iWaKHHQHV4gHutjkxuQrR1PN3Lxcb9?tx_amount=2&tx_description=dinner');
+    await t.pumpAndSettle();
+    expect(find.text('SEND CAMO'), findsOneWidget);
+    expect(find.text('For: dinner'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
   });
 }
