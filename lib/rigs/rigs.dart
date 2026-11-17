@@ -91,7 +91,7 @@ class RigPairing {
   }
 }
 
-enum RigState { checking, mining, stopped, noCamod, unreachable, refused, wrongCertificate }
+enum RigState { checking, mining, stopped, noCamod, unreachable, refused, wrongCertificate, helperError }
 
 class RigStatus {
   final RigState state;
@@ -143,13 +143,16 @@ class HttpRigClient implements RigClient {
       final req = await http.openUrl(method, Uri(scheme: 'https', host: r.host, port: r.port, path: path));
       req.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${r.secret}');
       if (body != null) {
+        final bytes = utf8.encode(jsonEncode(body));
         req.headers.contentType = ContentType.json;
-        req.write(jsonEncode(body));
+        req.contentLength = bytes.length; // plain Content-Length, not chunked
+        req.add(bytes);
       }
       final res = await req.close().timeout(const Duration(seconds: 20));
       final text = await res.transform(utf8.decoder).join();
       if (res.statusCode == 401) return const RigStatus(RigState.refused);
       if (res.statusCode == 503) return const RigStatus(RigState.noCamod);
+      if (res.statusCode != 200) return const RigStatus(RigState.helperError);
       final j = jsonDecode(text);
       return j is Map ? RigStatus.fromJson(j) : const RigStatus(RigState.unreachable);
     } on HandshakeException {

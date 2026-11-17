@@ -234,6 +234,7 @@ class _RigCard extends StatelessWidget {
         'Can\'t reach it. Is the rig helper running, and is this phone on the same Wi-Fi?',
         Gc.amber,
       ),
+      RigState.helperError => ('The rig helper hit an error. Look at its window on the computer, or update it.', Gc.amber),
       RigState.refused => ('The computer refused this phone. Pair it again.', Gc.danger),
       RigState.wrongCertificate => (
         'A different device answered at this address. Nothing was sent. Pair again if the computer was reset.',
