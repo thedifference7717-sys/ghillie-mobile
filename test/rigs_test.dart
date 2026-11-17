@@ -109,11 +109,18 @@ void main() {
     expect(find.text('iMac'), findsOneWidget);
     expect(find.text('STOPPED'), findsOneWidget);
     expect(find.text('3'), findsOneWidget); // defaults to the computer's cap
+    expect(find.textContaining('All-out'), findsOneWidget);
+    await t.tap(find.byKey(Key('rig-threads-info-$id')));
+    await t.pumpAndSettle();
+    expect(find.text('WHAT ARE THREADS?'), findsOneWidget);
+    await t.tap(find.byKey(const Key('threads-help-ok')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(Key('rig-minus-$id')));
     await t.pump();
     await t.tap(find.byKey(Key('rig-start-$id')));
     await t.pumpAndSettle();
     expect(fake.calls, ['start 2']);
+    expect(find.textContaining('Balanced'), findsOneWidget);
     expect(find.textContaining('MINING · 1234 H/s · 2 of 3 threads'), findsOneWidget);
     await t.tap(find.byKey(Key('rig-stop-$id')));
     await t.pumpAndSettle();

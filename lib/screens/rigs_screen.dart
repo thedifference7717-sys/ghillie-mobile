@@ -193,6 +193,37 @@ class _Intro extends StatelessWidget {
   );
 }
 
+/// One line under the thread count, so the number means something.
+String threadsHint(int n, int max) {
+  if (max <= 1) return 'This computer allows 1 thread.';
+  final r = n / max;
+  if (r <= 0.34) return 'Light: the computer stays easy to use.';
+  if (r <= 0.75) return 'Balanced: good speed, a little more heat and fan noise.';
+  return 'All-out: fastest, but it runs hot and the computer may feel slow.';
+}
+
+Future<void> showThreadsHelp(BuildContext context, {required int max, required int cpus}) => showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('WHAT ARE THREADS?', style: Gt.pixel(24)),
+        content: SingleChildScrollView(
+          child: Text(
+            'A thread is one worker on your computer\'s processor. Each one makes mining guesses; '
+            'more threads means more guesses per second (the H/s number) and a bigger chance of finding blocks.\n\n'
+            'More threads also means more heat, fan noise and electricity, and the computer gets slower for '
+            'anything else you do on it.\n\n'
+            'Past about half of the ${cpus > 0 ? '$cpus ' : ''}threads, each extra one adds less: many processors '
+            'run two threads per core.\n\n'
+            'Mining also needs about 2.5 GB of free memory. If the H/s drops to 0, close some apps.\n\n'
+            'You can go up to $max here: the computer\'s owner set that limit when setting up the rig helper. '
+            'Threads never change where rewards go.',
+            style: Gt.body(14, color: Gc.text2).copyWith(height: 1.45),
+          ),
+        ),
+        actions: [FilledButton(key: const Key('threads-help-ok'), onPressed: () => Navigator.pop(c), child: const Text('Got it'))],
+      ),
+    );
+
 String formatHashrate(int hs) => hs >= 1000000
     ? '${(hs / 1e6).toStringAsFixed(2)} MH/s'
     : hs >= 10000
@@ -290,8 +321,16 @@ class _RigCard extends StatelessWidget {
                   onPressed: busy || n >= max ? null : () => onThreads(n + 1),
                   icon: const Icon(Icons.add),
                 ),
+                const Spacer(),
+                IconButton(
+                  key: Key('rig-threads-info-${rig.id}'),
+                  tooltip: 'What are threads?',
+                  onPressed: () => showThreadsHelp(context, max: max, cpus: s.cpus),
+                  icon: const Icon(Icons.info_outline, color: Gc.text3),
+                ),
               ],
             ),
+            Text(threadsHint(n, max), key: Key('rig-threads-hint-${rig.id}'), style: Gt.body(12, color: Gc.text3)),
             Padding(
               padding: const EdgeInsets.only(right: 8, top: 4),
               child: busy

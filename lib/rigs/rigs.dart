@@ -95,7 +95,7 @@ enum RigState { checking, mining, stopped, noCamod, unreachable, refused, wrongC
 
 class RigStatus {
   final RigState state;
-  final int hashrate, threads, maxThreads, height;
+  final int hashrate, threads, maxThreads, height, cpus;
   final String payout;
   const RigStatus(
     this.state, {
@@ -103,6 +103,7 @@ class RigStatus {
     this.threads = 0,
     this.maxThreads = 1,
     this.height = 0,
+    this.cpus = 0,
     this.payout = '',
   });
 
@@ -113,6 +114,7 @@ class RigStatus {
       hashrate: (j['hashrate'] as num?)?.toInt() ?? 0,
       threads: (j['threads'] as num?)?.toInt() ?? 0,
       maxThreads: (j['max_threads'] as num?)?.toInt() ?? 1,
+      cpus: (j['cpus'] as num?)?.toInt() ?? 0,
       height: (j['height'] as num?)?.toInt() ?? 0,
       payout: '${j['payout'] ?? ''}',
     );
