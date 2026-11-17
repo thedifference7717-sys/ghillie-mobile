@@ -143,6 +143,8 @@ void main() {
       secret: p.secret,
     );
     final proc = await Process.start('python3', [agent, 'run'], environment: env);
+    proc.stderr.transform(const SystemEncoding().decoder).listen((e) => print('helper: $e'));
+    proc.stdout.transform(const SystemEncoding().decoder).listen((e) => print('helper: $e'));
     addTearDown(() {
       proc.kill();
       home.deleteSync(recursive: true);
