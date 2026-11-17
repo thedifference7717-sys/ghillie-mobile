@@ -428,4 +428,27 @@ void lockToIntroTest() {
     expect(find.text('Skip'), findsOneWidget); // the scope screen
     expect(find.byKey(const Key('setup-pw')), findsNothing);
   });
+
+  testWidgets('auto-lock after 13 minutes without a touch', (t) async {
+    await phone(t);
+    final v = DemoVault();
+    await v.restore(DemoVault.sampleWords, 'correct horse', 0);
+    await t.pumpWidget(GhillieApp(vault: v, showIntro: false));
+    await t.pump(const Duration(milliseconds: 500));
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.tap(find.byKey(const Key('setup-unlock')));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const Key('setup-pw')), findsNothing); // wallet open
+    await t.pump(const Duration(minutes: 12));
+    await t.tapAt(const Offset(5, 5)); // a touch restarts the clock
+    await t.pump(const Duration(minutes: 12));
+    expect(find.byKey(const Key('setup-pw')), findsNothing);
+    await t.pump(const Duration(minutes: 1, seconds: 1));
+    for (var k = 0; k < 10; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const Key('setup-pw')), findsOneWidget); // locked
+  });
 }

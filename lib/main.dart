@@ -1,4 +1,5 @@
 // Copyright (c) 2026, The CAMO Project. BSD-3-Clause, see LICENSE.
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/scope_intro.dart';
@@ -20,6 +21,9 @@ import 'wallet/wallet_service.dart';
 /// (host:port); CAMO_NETWORK = mainnet|stagenet|testnet (default stagenet). Without them: demo data.
 /// The project's public read-only stagenet node for phones (AWS seed, `deploy-seed-node.sh --public-rpc`, Nov 14).
 const stagenetPhoneNode = '3.134.132.214:39749';
+
+/// The wallet locks itself after this long without a touch, or after this long in the background (Anthony, Nov 17).
+const autoLockAfter = Duration(minutes: 13);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,22 +60,54 @@ class GhillieApp extends StatefulWidget {
   State<GhillieApp> createState() => _GhillieAppState();
 }
 
-class _GhillieAppState extends State<GhillieApp> {
+class _GhillieAppState extends State<GhillieApp> with WidgetsBindingObserver {
   late bool _intro = widget.showIntro;
   late WalletService? _wallet = widget.wallet;
   bool _turnOnQuick = false;
   bool _lockedByUser = false; // after Settings > Lock, Face ID waits for a tap instead of popping up at once
 
+  Timer? _idle;
+  DateTime? _wentAway;
+
   @override
   void initState() {
     super.initState();
-    if (widget.vault != null) AppLock.lock = _lock;
+    if (widget.vault != null) {
+      AppLock.lock = _lock;
+      WidgetsBinding.instance.addObserver(this);
+    }
   }
 
   @override
   void dispose() {
     if (AppLock.lock == _lock) AppLock.lock = null;
+    WidgetsBinding.instance.removeObserver(this);
+    _idle?.cancel();
     super.dispose();
+  }
+
+  /// Auto-lock: any touch restarts the 13-minute clock while a real wallet is open.
+  void _touched() {
+    _idle?.cancel();
+    if (widget.vault == null || _wallet == null) return;
+    _idle = Timer(autoLockAfter, () {
+      if (mounted && _wallet != null) _lock();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _wentAway ??= DateTime.now(); // timers may not run while the app is in the background
+    } else if (state == AppLifecycleState.resumed) {
+      final away = _wentAway;
+      _wentAway = null;
+      if (away != null && _wallet != null && DateTime.now().difference(away) >= autoLockAfter) {
+        _lock();
+      } else {
+        _touched();
+      }
+    }
   }
 
   void _lock({bool turnOnQuickUnlock = false}) {
@@ -84,6 +120,7 @@ class _GhillieAppState extends State<GhillieApp> {
       _intro = widget.showIntro && !turnOnQuickUnlock;
       _lockedByUser = !_intro;
     });
+    _idle?.cancel();
     w?.dispose(); // closes and saves the wallet file; the keys leave memory
   }
   @override
@@ -91,6 +128,8 @@ class _GhillieAppState extends State<GhillieApp> {
         title: 'Ghillie',
         debugShowCheckedModeBanner: false,
         theme: ghillieTheme(),
+        builder: (c, child) =>
+            Listener(behavior: HitTestBehavior.translucent, onPointerDown: (_) => _touched(), child: child),
         home: AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
           child: _intro
@@ -101,7 +140,10 @@ class _GhillieAppState extends State<GhillieApp> {
                       vault: widget.vault!,
                       rememberNext: _turnOnQuick,
                       autoQuickUnlock: !_lockedByUser,
-                      onReady: (w) => setState(() => _wallet = w))
+                      onReady: (w) {
+                        setState(() => _wallet = w);
+                        _touched();
+                      })
                   : HomeScreen(key: const ValueKey('home'), wallet: _wallet!),
         ),
       );
