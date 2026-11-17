@@ -89,7 +89,7 @@ class _SendScreenState extends State<SendScreen> {
       final txid = await w.commitSend(draft);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sent. Transaction $txid')));
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(txid); // the txid tells the caller (e.g. Subscriptions) the payment went out
     } on UnsupportedError catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Not supported')));
     } catch (e) {

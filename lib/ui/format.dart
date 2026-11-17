@@ -9,3 +9,6 @@ String ago(DateTime t, {DateTime? now}) {
 }
 
 String groupInt(int n) => n.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+
+/// First and last characters of an address, e.g. "QRDxqzNT…EviM".
+String shortAddress(String a) => a.length <= 16 ? a : '${a.substring(0, 8)}…${a.substring(a.length - 4)}';

@@ -8,17 +8,33 @@ import 'receive_screen.dart';
 import 'rigs_screen.dart';
 import 'send_screen.dart';
 import 'settings_screen.dart';
+import 'subscriptions_screen.dart';
+import '../wallet/subscriptions.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final WalletService wallet;
   const HomeScreen({super.key, required this.wallet});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  WalletService get wallet => widget.wallet;
+  late final book = SubscriptionBook(widget.wallet.walletName)..load();
+
+  @override
+  void dispose() {
+    book.dispose();
+    super.dispose();
+  }
+
 
   void _go(BuildContext c, Widget w) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => w));
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: wallet,
+      listenable: Listenable.merge([wallet, book]),
       builder: (context, _) {
         final s = wallet.sync;
         final whole = wallet.balance.format(minDecimals: 2, maxDecimals: 2);
@@ -102,6 +118,8 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(child: _Action(icon: Icons.desktop_windows_outlined, label: 'Rigs', onTap: () => _go(context, const RigsScreen()))),
                   ]),
+                  const SizedBox(height: 10),
+                  _SubsTile(book: book, onTap: () => _go(context, SubscriptionsScreen(wallet: wallet, book: book))),
                   const SizedBox(height: 18),
                   Text('RECENT', style: Gt.pixel(20, color: Gc.text2)),
                   const SizedBox(height: 4),
@@ -114,6 +132,45 @@ class HomeScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _SubsTile extends StatelessWidget {
+  final SubscriptionBook book;
+  final VoidCallback onTap;
+  const _SubsTile({required this.book, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final due = book.due(now).length;
+    final n = book.items.length;
+    final text = due > 0
+        ? '$due payment${due == 1 ? '' : 's'} due'
+        : n == 0
+            ? 'None yet'
+            : '$n saved';
+    return Semantics(
+      button: true,
+      child: InkWell(
+        key: const Key('home-subscriptions'),
+        onTap: onTap,
+        child: NotchBox(
+          borderColor: due > 0 ? Gc.amber : Gc.line2,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            Icon(Icons.event_repeat, size: 20, color: due > 0 ? Gc.amber : Gc.text2),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Subscriptions', style: Gt.body(15, weight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: 8),
+            Flexible(
+                child: Text(text,
+                    style: due > 0 ? Gt.pixel(18, color: Gc.amber) : Gt.body(13, color: Gc.text3),
+                    overflow: TextOverflow.ellipsis)),
+            const Icon(Icons.chevron_right, color: Gc.text3),
+          ]),
+        ),
+      ),
     );
   }
 }
