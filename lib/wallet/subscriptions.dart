@@ -17,7 +17,9 @@ class Subscription {
   final CamoAmount amount;
   final int day; // 1..31; in shorter months a 29/30/31 payment falls on the last day
   final String? paidMonth; // 'yyyy-mm' of the last payment made from Ghillie
-  const Subscription({required this.id, required this.name, required this.address, required this.amount, required this.day, this.paidMonth});
+  final DateTime? start; // first payment date; never due before it
+  const Subscription(
+      {required this.id, required this.name, required this.address, required this.amount, required this.day, this.paidMonth, this.start});
 
   static String monthOf(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
@@ -26,11 +28,14 @@ class Subscription {
   /// This payment's day in the given month (the 31st is the 30th in April, the 28th or 29th in February).
   int dayIn(int year, int month) => day > _daysIn(year, month) ? _daysIn(year, month) : day;
 
-  bool isDue(DateTime now) => now.day >= dayIn(now.year, now.month) && paidMonth != monthOf(now);
+  bool _beforeStart(DateTime d) => start != null && DateTime(d.year, d.month, d.day).isBefore(start!);
+
+  bool isDue(DateTime now) => !_beforeStart(now) && now.day >= dayIn(now.year, now.month) && paidMonth != monthOf(now);
 
   /// The next date this payment is (or was) due, today included when it is still unpaid.
   DateTime nextDate(DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
+    if (_beforeStart(now)) return start!;
     if (isDue(now)) return today;
     final thisMonth = DateTime(now.year, now.month, dayIn(now.year, now.month));
     if (paidMonth != monthOf(now) && !thisMonth.isBefore(today)) return thisMonth;
@@ -40,10 +45,14 @@ class Subscription {
 
   Subscription copyWith({String? name, String? address, CamoAmount? amount, int? day, String? paidMonth}) => Subscription(
       id: id, name: name ?? this.name, address: address ?? this.address, amount: amount ?? this.amount,
-      day: day ?? this.day, paidMonth: paidMonth ?? this.paidMonth);
+      day: day ?? this.day, paidMonth: paidMonth ?? this.paidMonth, start: start);
 
-  Map<String, Object?> toJson() =>
-      {'id': id, 'name': name, 'address': address, 'amount': amount.toPlain(), 'day': day, 'paid': paidMonth};
+  static String _ymd(DateTime d) => '${monthOf(d)}-${d.day.toString().padLeft(2, '0')}';
+
+  Map<String, Object?> toJson() => {
+        'id': id, 'name': name, 'address': address, 'amount': amount.toPlain(), 'day': day, 'paid': paidMonth,
+        if (start != null) 'start': _ymd(start!),
+      };
 
   static Subscription? fromJson(Object? j) {
     if (j is! Map) return null;
@@ -52,7 +61,8 @@ class Subscription {
     if (amount == null || day is! int || day < 1 || day > 31) return null;
     return Subscription(
         id: '${j['id']}', name: '${j['name']}', address: '${j['address']}', amount: amount, day: day,
-        paidMonth: j['paid'] as String?);
+        paidMonth: j['paid'] as String?,
+        start: j['start'] is String ? DateTime.tryParse(j['start'] as String) : null);
   }
 }
 

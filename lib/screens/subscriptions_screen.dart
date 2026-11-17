@@ -11,6 +11,7 @@ import 'send_screen.dart';
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 String _date(DateTime d) => '${_months[d.month - 1]} ${d.day}';
+String _ordinal(int n) => '$n${n >= 11 && n <= 13 ? 'th' : switch (n % 10) { 1 => 'st', 2 => 'nd', 3 => 'rd', _ => 'th' }}';
 
 /// Saved monthly payments. Nothing is ever sent automatically: a due payment is paid with one tap, through the
 /// normal Send review and confirmation.
@@ -126,7 +127,23 @@ class _EditDialogState extends State<_EditDialog> {
   late final _name = TextEditingController(text: widget.existing?.name);
   late final _address = TextEditingController(text: widget.existing?.address);
   late final _amount = TextEditingController(text: widget.existing?.amount.toPlain());
-  late int _day = widget.existing?.day ?? DateTime.now().day;
+  late DateTime _first = widget.existing?.nextDate(DateTime.now()) ?? _today();
+  static DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  Future<void> _pickDate() async {
+    final today = _today();
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _first.isBefore(today) ? today : _first,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 400)),
+      helpText: 'FIRST PAYMENT',
+    );
+    if (d != null) setState(() => _first = d);
+  }
   String? _error;
 
   void _save() {
@@ -144,8 +161,10 @@ class _EditDialogState extends State<_EditDialog> {
             name: _name.text.trim(),
             address: address,
             amount: amount,
-            day: _day,
-            paidMonth: e?.paidMonth));
+            day: _first.day,
+            // a first date after today: not due before it; a date this month that was already paid stays paid
+            paidMonth: e?.paidMonth,
+            start: _first));
   }
 
   @override
@@ -173,17 +192,27 @@ class _EditDialogState extends State<_EditDialog> {
           field('Amount (CAMO)', TextField(
               key: const Key('sub-amount'), controller: _amount,
               keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-          Row(children: [
-            Expanded(child: Text('Day of the month', style: Gt.body(14, color: Gc.text2))),
-            DropdownButton<int>(
-              key: const Key('sub-day'),
-              value: _day,
-              items: [for (var d = 1; d <= 31; d++) DropdownMenuItem(value: d, child: Text('$d'))],
-              onChanged: (d) => setState(() => _day = d ?? _day),
+          field(
+            'First payment',
+            InkWell(
+              key: const Key('sub-date'),
+              onTap: _pickDate,
+              child: NotchBox(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                child: Row(children: [
+                  const Icon(Icons.calendar_month, size: 20, color: Gc.text2),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('${_date(_first)}, ${_first.year}', style: Gt.body(15))),
+                  Text('change', style: Gt.body(13, color: Gc.amber)),
+                ]),
+              ),
             ),
-          ]),
-          if (_day > 28)
-            Text('In shorter months: the last day of the month.', style: Gt.body(12, color: Gc.text3)),
+          ),
+          Text(
+              _first.day > 28
+                  ? 'Then every month on the ${_ordinal(_first.day)} (the last day in shorter months).'
+                  : 'Then every month on the ${_ordinal(_first.day)}.',
+              style: Gt.body(12, color: Gc.text3)),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: Gt.body(13, color: Gc.danger))),
         ]),
       ),

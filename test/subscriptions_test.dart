@@ -32,6 +32,17 @@ void main() {
     expect(sub(day: 30, paid: '2028-01').nextDate(DateTime(2028, 1, 31)), DateTime(2028, 2, 29));
   });
 
+  test('a first date in the future: not due before it, then monthly', () {
+    final s = Subscription(
+        id: 'b', name: 'Host', address: miner, amount: CamoAmount.tryParse('3')!, day: 5, start: DateTime(2027, 3, 5));
+    expect(s.isDue(DateTime(2027, 2, 20)), isFalse); // day 5 has passed in Feb, but it starts in March
+    expect(s.nextDate(DateTime(2027, 2, 20)), DateTime(2027, 3, 5));
+    expect(s.isDue(DateTime(2027, 3, 5)), isTrue);
+    final again = Subscription.fromJson(s.toJson())!;
+    expect(again.start, DateTime(2027, 3, 5));
+    expect(again.isDue(DateTime(2027, 3, 4)), isFalse);
+  });
+
   test('saved per wallet, survive a reload; broken data is ignored', () async {
     final store = MemorySubscriptionStore();
     final b = SubscriptionBook('w1', store: store);
@@ -64,6 +75,13 @@ void main() {
 
     await t.tap(find.byKey(const Key('sub-add')));
     await t.pumpAndSettle();
+    expect(find.textContaining('Then every month on the'), findsOneWidget);
+    await t.tap(find.byKey(const Key('sub-date'))); // the calendar opens
+    await t.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await t.tap(find.text('OK'));
+    await t.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsNothing);
     await t.tap(find.byKey(const Key('sub-save')));
     await t.pump();
     expect(find.textContaining('Give it a name'), findsOneWidget);
@@ -76,7 +94,8 @@ void main() {
     await t.enterText(find.byKey(const Key('sub-address')), miner);
     await t.tap(find.byKey(const Key('sub-save')));
     await t.pumpAndSettle();
-    // the day defaults to today, so it is due right away
+    // the first payment date defaults to today, so it is due right away
+    expect(find.textContaining('Then every month on the'), findsNothing);
     expect(find.text('VPN'), findsOneWidget);
     expect(find.text('DUE NOW'), findsOneWidget);
 
