@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "org.camocoin.ghillie"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37 // androidx.core 1.19 (flutter_local_notifications) needs 37+; minSdk/targetSdk unchanged
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
