@@ -10,6 +10,8 @@ import 'send_screen.dart';
 import 'settings_screen.dart';
 import 'subscriptions_screen.dart';
 import '../wallet/subscriptions.dart';
+import '../wallet/address_book.dart';
+import 'address_book_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final WalletService wallet;
@@ -21,10 +23,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   WalletService get wallet => widget.wallet;
   late final book = SubscriptionBook(widget.wallet.walletName)..load();
+  late final contacts = AddressBook(widget.wallet.walletName)..load();
 
   @override
   void dispose() {
     book.dispose();
+    contacts.dispose();
     super.dispose();
   }
 
@@ -34,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([wallet, book]),
+      listenable: Listenable.merge([wallet, book, contacts]),
       builder: (context, _) {
         final s = wallet.sync;
         final whole = wallet.balance.format(minDecimals: 2, maxDecimals: 2);
@@ -120,6 +124,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ]),
                   const SizedBox(height: 10),
                   _SubsTile(book: book, onTap: () => _go(context, SubscriptionsScreen(wallet: wallet, book: book))),
+                  const SizedBox(height: 10),
+                  _Tile(
+                    key: const Key('home-saved'),
+                    icon: Icons.bookmark_outline,
+                    title: 'Saved addresses',
+                    trailing: contacts.items.isEmpty ? 'Exchanges, people' : '${contacts.items.length} saved',
+                    onTap: () => _go(context, AddressBookScreen(wallet: wallet, book: contacts)),
+                  ),
                   const SizedBox(height: 18),
                   Text('RECENT', style: Gt.pixel(20, color: Gc.text2)),
                   const SizedBox(height: 4),
@@ -134,6 +146,32 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+class _Tile extends StatelessWidget {
+  final IconData icon;
+  final String title, trailing;
+  final VoidCallback onTap;
+  const _Tile({super.key, required this.icon, required this.title, required this.trailing, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          child: NotchBox(
+            borderColor: Gc.line2,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              Icon(icon, size: 20, color: Gc.text2),
+              const SizedBox(width: 10),
+              Expanded(child: Text(title, style: Gt.body(15, weight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 8),
+              Flexible(child: Text(trailing, style: Gt.body(13, color: Gc.text3), overflow: TextOverflow.ellipsis)),
+              const Icon(Icons.chevron_right, color: Gc.text3),
+            ]),
+          ),
+        ),
+      );
 }
 
 class _SubsTile extends StatelessWidget {

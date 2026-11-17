@@ -32,6 +32,7 @@ void main() {
     subscriptionStore = MemorySubscriptionStore();
     await t.pumpWidget(GhillieApp(wallet: DemoWallet(), showIntro: false));
     await t.pumpAndSettle();
+    expect(find.text('Saved addresses'), findsOneWidget); // on the home screen
     await t.tap(find.bySemanticsLabel('Settings'));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('settings-saved')));
