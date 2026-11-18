@@ -87,7 +87,7 @@ Future<void> openRecoveryWords(
   pw.clear();
   if (ok != true || !context.mounted) return;
   final words = await wallet.seedWords();
-  final meta = await WalletMeta.load(wallet.walletName);
+  final meta = await WalletMeta.loadFor(wallet);
   if (!context.mounted) return;
   await Navigator.push(
     context,
@@ -176,7 +176,7 @@ class _RecoveryWordsScreenState extends State<RecoveryWordsScreen> {
                 final t = height.text.trim();
                 final h = t.isEmpty ? null : int.tryParse(t);
                 if (t.isNotEmpty && (h == null || h < 0)) return set(() => error = 'A block number, like 7000.');
-                Navigator.pop(ctx, WalletMeta(created: date, restoreHeight: h));
+                Navigator.pop(ctx, WalletMeta(created: date, restoreHeight: h, createdEstimated: meta.createdEstimated && date == meta.created));
               },
               child: const Text('Save'),
             ),
@@ -216,7 +216,7 @@ class _RecoveryWordsScreenState extends State<RecoveryWordsScreen> {
                   Text(
                     key: const Key('words-meta'),
                     [
-                      'Made: ${meta.created == null ? 'not recorded (write it by hand)' : sheetDate(meta.created!)}',
+                      'Made: ${meta.createdText ?? 'not recorded (write it by hand)'}',
                       'Restore height: ${meta.restoreHeight?.toString() ?? 'not recorded (write it by hand; 0 is always safe)'}',
                     ].join('\n'),
                     style: Gt.mono(12, color: Gc.text2),

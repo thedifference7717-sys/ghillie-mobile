@@ -172,4 +172,47 @@ void main() {
     await WalletMeta.recordRestored(w, 1234, store: store);
     expect((await WalletMeta.load(w.walletName, store: store)).restoreHeight, 1234);
   });
+
+  test('older wallets: restore height from the wallet library, date estimated from that block', () async {
+    final now = DateTime(2026, 11, 18, 12);
+    // library height 7000, chain at 7000 + 1440 (one day of 1-minute blocks)
+    final m = WalletMeta.fill(const WalletMeta(), libraryHeight: 7000, chainHeight: 8440, now: now);
+    expect(m.restoreHeight, 7000);
+    expect(m.created, DateTime(2026, 11, 17, 12));
+    expect(m.createdEstimated, isTrue);
+    expect(m.createdText, 'about Nov 17, 2026');
+    // what Ghillie recorded wins; a recorded date is never marked estimated
+    final rec = WalletMeta(created: DateTime(2026, 11, 16), restoreHeight: 6500);
+    final kept = WalletMeta.fill(rec, libraryHeight: 7000, chainHeight: 8440, now: now);
+    expect(kept.restoreHeight, 6500);
+    expect(kept.createdText, 'Nov 16, 2026');
+    // restored wallet with a typed height: date filled from that height
+    expect(WalletMeta.fill(const WalletMeta(restoreHeight: 7000), chainHeight: 8440, now: now).createdText, 'about Nov 17, 2026');
+    // height 0 (scan everything) or unknown chain height: no date guessed
+    expect(WalletMeta.fill(const WalletMeta(), libraryHeight: 0, chainHeight: 8440, now: now).created, isNull);
+    expect(WalletMeta.fill(const WalletMeta(), libraryHeight: 7000, chainHeight: 0, now: now).created, isNull);
+    // no library height (demo / older engine): unchanged
+    expect(WalletMeta.fill(const WalletMeta(), chainHeight: 8440, now: now).restoreHeight, isNull);
+  });
+
+  test('loadFor saves what it filled in, with the estimated flag', () async {
+    final store = MemorySubscriptionStore();
+    final w = _LibWallet(1218); // demo chain is 2658 tall: 1440 blocks (a day) back
+    final m = await WalletMeta.loadFor(w, store: store, now: DateTime(2026, 11, 18, 12));
+    expect(m.restoreHeight, 1218);
+    expect(m.createdText, 'about Nov 17, 2026');
+    final again = await WalletMeta.load(w.walletName, store: store);
+    expect(again.restoreHeight, 1218);
+    expect(again.createdEstimated, isTrue);
+    final text = latin1.decode(await seedSheetPdf(DemoVault.sampleWords, PdfPageFormat.letter, compress: false, meta: again));
+    expect(text, contains('[(about)]'));
+  });
+}
+
+/// A demo wallet whose "library" knows its restore height (as the real engine does).
+class _LibWallet extends DemoWallet {
+  final int h;
+  _LibWallet(this.h);
+  @override
+  int? get libraryRestoreHeight => h;
 }

@@ -99,7 +99,7 @@ Future<Uint8List> seedSheetPdf(List<String> words, PdfPageFormat format, {bool c
             ],
           ),
           pw.SizedBox(height: 26),
-          pw.Row(children: [blank('Wallet name (optional)'), pw.SizedBox(width: 16), blank('Date the wallet was made', meta?.created == null ? null : sheetDate(meta!.created!))]),
+          pw.Row(children: [blank('Wallet name (optional)'), pw.SizedBox(width: 16), blank('Date the wallet was made', meta?.createdText)]),
           pw.SizedBox(height: 14),
           pw.Row(
             children: [
