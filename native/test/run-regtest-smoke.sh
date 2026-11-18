@@ -26,3 +26,5 @@ mine 80
 mine 2
 OUT=$("$W/smoke" check "$W/w" 127.0.0.1:19741); echo "$OUT"
 grep -q 'balance 5000000000000 ' <<<"$OUT" && echo "PASS: B received exactly 5 CAMO" || { echo "FAIL"; exit 1; }
+# B was made before any block was mined, so the library's scan start (the recovery sheet's restore height) is 0 or 1
+grep -Eq '^restore_height [01]$' <<<"$OUT" && echo "PASS: restore height read from the library" || { echo "FAIL: restore height"; exit 1; }

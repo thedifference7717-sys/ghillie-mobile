@@ -100,6 +100,7 @@ int camo_wallet_refresh_now(camo_wallet *cw) {
 }
 uint64_t camo_wallet_height(camo_wallet *cw) { return cw->w->blockChainHeight(); }
 uint64_t camo_wallet_daemon_height(camo_wallet *cw) { return cw->w->daemonBlockChainHeight(); }
+uint64_t camo_wallet_restore_height(camo_wallet *cw) { return cw->w->getRefreshFromBlockHeight(); }
 int camo_wallet_connected(camo_wallet *cw) { return cw->w->connected() == Wallet::ConnectionStatus_Connected ? 1 : 0; }
 int camo_wallet_synchronized(camo_wallet *cw) { return cw->w->synchronized() ? 1 : 0; }
 uint64_t camo_wallet_balance(camo_wallet *cw) { return cw->w->balance(0); }

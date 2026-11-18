@@ -48,6 +48,9 @@ int camo_wallet_start_refresh(camo_wallet *w); /* background refresh thread in t
 int camo_wallet_refresh_now(camo_wallet *w);
 uint64_t camo_wallet_height(camo_wallet *w);
 uint64_t camo_wallet_daemon_height(camo_wallet *w);
+/* The block this wallet scans from (set by the library at creation, or the height typed in at restore).
+   Restoring from it, or any lower height, finds every coin the wallet has. */
+uint64_t camo_wallet_restore_height(camo_wallet *w);
 int camo_wallet_connected(camo_wallet *w);
 int camo_wallet_synchronized(camo_wallet *w);
 uint64_t camo_wallet_balance(camo_wallet *w);

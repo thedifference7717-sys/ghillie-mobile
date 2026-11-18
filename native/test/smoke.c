@@ -15,6 +15,7 @@ static camo_wallet *open_or_die(const char *path) {
 static void sync_w(camo_wallet *w, const char *daemon) {
   if (!camo_wallet_connect(w, daemon, 1)) { fprintf(stderr, "connect: %s\n", camo_wallet_error(w)); exit(1); }
   if (!camo_wallet_refresh_now(w)) { fprintf(stderr, "refresh: %s\n", camo_wallet_error(w)); exit(1); }
+  printf("restore_height %llu\n", (unsigned long long)camo_wallet_restore_height(w));
   printf("height %llu/%llu balance %llu unlocked %llu\n", (unsigned long long)camo_wallet_height(w),
          (unsigned long long)camo_wallet_daemon_height(w), (unsigned long long)camo_wallet_balance(w),
          (unsigned long long)camo_wallet_unlocked_balance(w));

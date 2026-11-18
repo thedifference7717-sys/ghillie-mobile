@@ -82,6 +82,10 @@ abstract class WalletService extends ChangeNotifier {
   /// The 25 recovery words, for Settings > Recovery words (after the password is checked again).
   Future<List<String>> seedWords() async => throw UnsupportedError('This wallet cannot show its words.');
 
+  /// The block the wallet library scans from (its own record; restoring from it or lower finds every coin).
+  /// Null if this wallet can't tell (demo, or an older engine).
+  int? get libraryRestoreHeight => null;
+
   bool get canChangeNode => false;
   Future<void> changeNode(String node) async => throw UnsupportedError('This wallet cannot change nodes.');
 }

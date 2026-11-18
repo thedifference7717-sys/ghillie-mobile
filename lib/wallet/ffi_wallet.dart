@@ -38,6 +38,7 @@ class _Lib {
   late final startRefresh = d.lookupFunction<Int32 Function(_P), int Function(_P)>('camo_wallet_start_refresh');
   late final height = d.lookupFunction<Uint64 Function(_P), int Function(_P)>('camo_wallet_height');
   late final daemonHeight = d.lookupFunction<Uint64 Function(_P), int Function(_P)>('camo_wallet_daemon_height');
+  late final restoreHeight = d.lookupFunction<Uint64 Function(_P), int Function(_P)>('camo_wallet_restore_height');
   late final connected = d.lookupFunction<Int32 Function(_P), int Function(_P)>('camo_wallet_connected');
   late final balance = d.lookupFunction<Uint64 Function(_P), int Function(_P)>('camo_wallet_balance');
   late final unlocked = d.lookupFunction<Uint64 Function(_P), int Function(_P)>('camo_wallet_unlocked_balance');
@@ -148,6 +149,14 @@ class FfiWallet extends WalletService {
 
   @override
   bool get isDemo => false;
+  @override
+  int? get libraryRestoreHeight {
+    try {
+      return _l.restoreHeight(_w);
+    } on ArgumentError {
+      return null; // an older engine without camo_wallet_restore_height
+    }
+  }
   @override
   CamoAmount get balance => _bal;
   @override
