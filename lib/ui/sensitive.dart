@@ -7,6 +7,9 @@
 //  * iOS (apps cannot block screenshots there): AppDelegate reports a screenshot ('screenshot') and screen
 //    recording or mirroring ('captured', true/false). A screenshot brings up a warning to delete it; while the
 //    screen is recorded or mirrored, the content is covered.
+//  * [onLeave]: called once when the app actually leaves the screen (home button, another app, phone locked),
+//    so a screen can close itself and drop the words. Not on 'inactive' (Face ID prompt, Control Center,
+//    notification shade, app switcher): those only cover the content.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme.dart';
@@ -25,7 +28,8 @@ Future<void> _secure(bool on) async {
 
 class Sensitive extends StatefulWidget {
   final Widget child;
-  const Sensitive({super.key, required this.child});
+  final VoidCallback? onLeave;
+  const Sensitive({super.key, required this.child, this.onLeave});
   @override
   State<Sensitive> createState() => _SensitiveState();
 }
@@ -49,7 +53,8 @@ class _SensitiveState extends State<Sensitive> with WidgetsBindingObserver {
   bool _background = false;
   bool _captured = false;
   bool _warning = false;
-  bool get _covered => _background || _captured;
+  bool _left = false;
+  bool get _covered => _background || _captured || (_left && widget.onLeave != null); // closing: never show again
 
   @override
   void initState() {
@@ -72,6 +77,10 @@ class _SensitiveState extends State<Sensitive> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final bg = state != AppLifecycleState.resumed;
     if (bg != _background) setState(() => _background = bg);
+    if ((state == AppLifecycleState.hidden || state == AppLifecycleState.paused) && !_left) {
+      _left = true;
+      widget.onLeave?.call();
+    }
   }
 
   void _setCaptured(bool on) {

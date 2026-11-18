@@ -151,6 +151,38 @@ void main() {
     expect(PasswordCheck.matches('correct horse'), isFalse); // forgotten on lock
   });
 
+  testWidgets('leaving the app closes the words screen; Face ID / Control Center (inactive) do not', (t) async {
+    await t.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (ctx) => TextButton(
+          key: const Key('open-words'),
+          onPressed: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => RecoveryWordsScreen(words: DemoVault.sampleWords))),
+          child: const Text('open'),
+        ),
+      ),
+    ));
+    await t.tap(find.byKey(const Key('open-words')));
+    await t.pumpAndSettle();
+    expect(find.byType(RecoveryWordsScreen), findsOneWidget);
+
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive); // Face ID prompt, Control Center
+    await t.pumpAndSettle();
+    expect(find.byType(RecoveryWordsScreen), findsOneWidget);
+
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden); // home button / another app
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await t.pump(); // no frames while in the background: the close finishes on return
+
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    expect(find.byKey(const Key('sensitive-cover')), findsOneWidget); // covered during the closing animation
+    await t.pumpAndSettle();
+    expect(find.byType(RecoveryWordsScreen), findsNothing); // starts over: words not shown again
+    expect(find.byKey(const Key('open-words')), findsOneWidget);
+  });
+
   test('sheet prints the date made and restore height when known', () async {
     final m = WalletMeta(created: DateTime(2026, 11, 16), restoreHeight: 7000);
     final text = latin1.decode(await seedSheetPdf(DemoVault.sampleWords, PdfPageFormat.letter, compress: false, meta: m));
