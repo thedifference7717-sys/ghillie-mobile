@@ -189,8 +189,19 @@ class _RecoveryWordsScreenState extends State<RecoveryWordsScreen> {
     if (mounted) setState(() => meta = r);
   }
 
+  /// Leaving the app closes this screen (and any dialog on it): coming back starts over, behind the password or
+  /// Face ID again, and the words are no longer in memory.
+  void _leave() {
+    final me = ModalRoute.of(context);
+    if (!mounted || me == null || !me.isActive) return;
+    final nav = Navigator.of(context);
+    nav.popUntil((r) => r == me);
+    nav.pop();
+  }
+
   @override
   Widget build(BuildContext context) => Sensitive(
+    onLeave: _leave,
     child: Scaffold(
       body: SafeArea(
         child: ListView(
