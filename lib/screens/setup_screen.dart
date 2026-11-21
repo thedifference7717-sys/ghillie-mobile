@@ -36,7 +36,7 @@ class SetupScreen extends StatefulWidget {
 
 enum _Step { welcome, unlock, newPassword, showWords, checkWords, restore }
 
-class _SetupScreenState extends State<SetupScreen> {
+class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   late _Step _step = widget.vault.hasWallet ? _Step.unlock : _Step.welcome;
   final _pw = TextEditingController(), _pw2 = TextEditingController(), _words = TextEditingController(),
       _height = TextEditingController(text: '0');
@@ -47,10 +47,15 @@ class _SetupScreenState extends State<SetupScreen> {
   bool _wroteDown = false, _busy = false;
   late bool _remember = widget.rememberNext; // "unlock with Face ID / fingerprint next time" (opt-in)
   bool _quickSet = false; // a biometric-protected password is stored
+  // Leaving the app while the new wallet's words are on screen locks them: the password just chosen shows them again.
+  // (The wallet already exists, so the words can't simply be dropped: they are its only backup.)
+  bool _wordsLocked = false;
+  final _unlockWords = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (quickUnlock.supported && widget.vault.hasWallet && !widget.rememberNext) {
       quickUnlock.isSet().then((set) {
         if (!mounted || !set) return;
@@ -99,8 +104,33 @@ class _SetupScreenState extends State<SetupScreen> {
   String? _error;
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final away = state == AppLifecycleState.hidden || state == AppLifecycleState.paused;
+    if (away && !_wordsLocked && (_step == _Step.showWords || _step == _Step.checkWords)) {
+      setState(() {
+        _wordsLocked = true;
+        _unlockWords.clear();
+        _error = null;
+      });
+    }
+  }
+
+  void _showWordsAgain() {
+    if (_unlockWords.text != _pw.text) {
+      setState(() => _error = 'Wrong password.');
+      return;
+    }
+    _unlockWords.clear();
+    setState(() {
+      _wordsLocked = false;
+      _error = null;
+    });
+  }
+
+  @override
   void dispose() {
-    for (final c in [_pw, _pw2, _words, _height, _node, ..._check.values]) {
+    WidgetsBinding.instance.removeObserver(this);
+    for (final c in [_pw, _pw2, _words, _height, _node, _unlockWords, ..._check.values]) {
       c.dispose();
     }
     super.dispose();
@@ -222,6 +252,17 @@ class _SetupScreenState extends State<SetupScreen> {
       );
 
   List<Widget> _body() {
+    if (_wordsLocked && (_step == _Step.showWords || _step == _Step.checkWords)) {
+      return [
+        Text('Words hidden', style: Gt.pixel(28)),
+        const SizedBox(height: 8),
+        Text('You left Ghillie, so your 25 words were hidden. Type the password you just chose to see them again.',
+            style: Gt.body(14, color: Gc.text2)),
+        const SizedBox(height: 16),
+        _field(_unlockWords, 'Password', secret: true, key: const Key('setup-words-unlock')),
+        _primary('SHOW MY WORDS', _showWordsAgain, key: const Key('setup-words-unlock-go')),
+      ];
+    }
     switch (_step) {
       case _Step.welcome:
         return [
