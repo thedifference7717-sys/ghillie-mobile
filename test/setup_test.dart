@@ -216,6 +216,37 @@ void sensitiveTest() {
     expect(find.byKey(const Key('sensitive-cover')), findsNothing);
   });
 
+  testWidgets('leaving the app during setup locks the new words behind the password', (t) async {
+    await phone(t);
+    await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
+    await tapKey(t, 'setup-create');
+    await t.enterText(find.byKey(const Key('setup-pw')), 'correct horse');
+    await t.enterText(find.byKey(const Key('setup-pw2')), 'correct horse');
+    await tapKey(t, 'setup-make');
+    expect(find.textContaining(' ${DemoVault.sampleWords[0]}'), findsWidgets);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive); // Face ID / Control Center: only covered
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    expect(find.byKey(const Key('setup-words-unlock')), findsNothing);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive); // home button / another app
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('setup-words-unlock')), findsOneWidget);
+    expect(find.textContaining(' ${DemoVault.sampleWords[0]}'), findsNothing); // words gone from the screen
+    await t.enterText(find.byKey(const Key('setup-words-unlock')), 'wrong password');
+    await tapKey(t, 'setup-words-unlock-go');
+    expect(find.textContaining('Wrong password'), findsOneWidget);
+    expect(find.textContaining(' ${DemoVault.sampleWords[0]}'), findsNothing);
+    await t.enterText(find.byKey(const Key('setup-words-unlock')), 'correct horse');
+    await tapKey(t, 'setup-words-unlock-go');
+    expect(find.textContaining(' ${DemoVault.sampleWords[0]}'), findsWidgets); // back, same words
+    expect(find.byKey(const Key('setup-wrote'), skipOffstage: false), findsOneWidget);
+  });
+
   testWidgets('iOS: a screenshot of the words brings up a warning; recording covers them', (t) async {
     await phone(t);
     await t.pumpWidget(GhillieApp(vault: DemoVault(), showIntro: false));
